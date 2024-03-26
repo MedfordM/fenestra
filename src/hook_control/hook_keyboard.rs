@@ -9,6 +9,7 @@ pub mod keyboard_hook {
     const WM_KEY_UP: usize = 0x0101;
     const WM_KEY_DOWN: usize = 0x0100;
     const KEY_SPACE: u32 = 0x20;
+    const KEY_WINDOWS: u32 = 0x5B;
 
     if code >= 0 {
       let hook_struct = lparam.0 as *mut KBDLLHOOKSTRUCT;
@@ -17,11 +18,15 @@ pub mod keyboard_hook {
         WPARAM(WM_KEY_UP) => {
           if (key_code) == KEY_SPACE {
             println!("Space key up");
-          }      
+          } else if (key_code) == KEY_WINDOWS {
+            println!("Windows key up");
+          }
         }
         WPARAM(WM_KEY_DOWN) => {  
           if (key_code) == KEY_SPACE {
             println!("Space key down");
+          } else if (key_code) == KEY_WINDOWS {
+            println!("Windows key down");
           }
         }
         _ => {}

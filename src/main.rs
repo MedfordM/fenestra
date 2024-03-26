@@ -1,4 +1,4 @@
- use windows::{core::PCSTR, Win32::{Foundation::{GetLastError, HWND, WIN32_ERROR}, UI::WindowsAndMessaging::{CreateWindowExA, GetMessageA, MSG, WINDOW_EX_STYLE, WM_QUIT, WS_TILED}}};
+ use windows::{core::PCSTR, Win32::{Foundation::{GetLastError, HWND, WIN32_ERROR}, UI::WindowsAndMessaging::{CreateWindowExA, GetMessageA, MSG, WINDOW_EX_STYLE, WM_CLOSE, WM_QUIT, WS_TILED}}};
 
  mod hook_control;
 
@@ -18,10 +18,11 @@ fn main() {
 
         let mut message: MSG = MSG::default();
         while GetMessageA(&mut message, window_handle,  0, 0).as_bool() {
-            if message.message == WM_QUIT {
+            if message.message == WM_QUIT  || message.message == WM_CLOSE {
+                print!("Got quit message");
                 hook_control::unset_hooks(hook_id);
+                break;
             }
         }
     }
-
 }
