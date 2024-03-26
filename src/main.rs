@@ -1,10 +1,11 @@
  use windows::{core::PCSTR, Win32::{Foundation::{GetLastError, HWND, WIN32_ERROR}, UI::WindowsAndMessaging::{CreateWindowExA, GetMessageA, MSG, WINDOW_EX_STYLE, WM_CLOSE, WM_QUIT, WS_TILED}}};
 
- mod hook_control;
+mod hook_control;
+mod data;
+pub mod window_control;
 
 fn main() {
     let hook_id = hook_control::set_hooks();
-
     let window_class = PCSTR(b"Button\0".as_ptr());
     let window_name: PCSTR = PCSTR("Rust window\0".as_ptr());
 

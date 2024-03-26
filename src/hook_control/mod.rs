@@ -1,9 +1,6 @@
 use std::process::exit;
-
 use windows::Win32::{Foundation::HINSTANCE, UI::WindowsAndMessaging::{SetWindowsHookExA, UnhookWindowsHookEx, HHOOK, WH_KEYBOARD_LL}};
-
 use crate::hook_control::hook_keyboard::keyboard_hook::callback;
-
 
 pub mod hook_keyboard;
 
