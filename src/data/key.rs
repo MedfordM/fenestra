@@ -1,4 +1,7 @@
+use std::str::FromStr;
 use windows::System::VirtualKey;
+use crate::data::config::WindowManagerAction;
+use crate::util::{get_key_code, get_key_name};
 
 // Key action
 #[derive(Clone, Copy, PartialEq)]
@@ -62,7 +65,7 @@ impl From<i32> for Key {
       KEY_CONTROL => "CTRL".to_string(),
       KEY_ALT => "ALT".to_string(),
       KEY_SHIFT => "SHIFT".to_string(),
-      _ => char::from(code as u8).to_string(),
+      _ => String::from(get_key_name(code))
     };
 
     Key {
@@ -72,6 +75,14 @@ impl From<i32> for Key {
   }
 }
 
+impl FromStr for Key {
+  type Err = ();
+
+  fn from_str(key: &str) -> Result<Self, Self::Err> {
+    let key_code: i32 = get_key_code(key.chars().next().unwrap());
+    Ok(Key::from(key_code))
+  }
+}
 impl std::fmt::Debug for Key {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{}", self.name)
@@ -95,6 +106,27 @@ impl KeyPress {
 }
 
 impl std::fmt::Debug for KeyPress {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{} {:?}", self.key.name, self.action)
+  }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct KeyCombo {
+  pub key: Key,
+  pub action: WindowManagerAction,
+}
+
+impl KeyCombo {
+  pub fn new(key: Key, action: WindowManagerAction) -> Self {
+    KeyCombo {
+      key,
+      action
+    }
+  }
+}
+
+impl std::fmt::Debug for KeyCombo {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{} {:?}", self.key.name, self.action)
   }

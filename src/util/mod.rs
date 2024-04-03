@@ -4,7 +4,9 @@ use windows::core::{Error, PCSTR};
 use windows::Win32::Foundation::{BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM};
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
+use windows::Win32::UI::Input::KeyboardAndMouse::{GetKeyNameTextA, VkKeyScanA};
 use windows::Win32::UI::WindowsAndMessaging::{CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetMessageA, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, SetWindowsHookExA, TranslateMessage, UnhookWindowsHookEx, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_STYLE, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA};
+
 use crate::hooks;
 use crate::hooks::hook_keyboard::keyboard_hook::callback;
 
@@ -101,4 +103,25 @@ pub fn unset_hook(hook: &HHOOK) {
     if result.is_err() {
         println!("Failed to unset hooks");
     }
+}
+
+pub fn get_key_name(key_code: i32) -> char {
+    let mut key_name: String = String::new();
+    let result = unsafe { GetKeyNameTextA(key_code, key_name.as_bytes_mut()) };
+    if result == 0 {
+        println!("Failed to fetch key name for code {}", key_code);
+    }
+    char::from_u32(result as u32).unwrap().to_ascii_uppercase()
+}
+
+pub fn get_key_code(key: char) -> i32 {
+    let key_code = key.to_digit(10);
+    if key_code.is_none() {
+        println!("Failed to convert character {} to digit", key);
+    }
+    let result = unsafe { VkKeyScanA(key_code.unwrap() as i8) };
+    if result == 0 {
+        println!("Failed to fetch key code for character {}", key);
+    }
+    result as i32
 }
