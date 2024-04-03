@@ -6,6 +6,7 @@ mod data;
 mod windows;
 mod util;
 mod state;
+mod config;
 
 fn main() {
     let app_handle: HWND = state::init::application();

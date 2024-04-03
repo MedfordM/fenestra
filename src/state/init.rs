@@ -1,8 +1,10 @@
+use std::path::Path;
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::hooks;
 use crate::util;
+use crate::config;
 
 const APP_NAME: &str = "WindowManager\0";
 
@@ -17,13 +19,16 @@ pub fn application() -> HWND {
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        400,
+        680,
         app_instance
     );
 }
 
 pub fn state() -> Vec<HHOOK> {
+    let config_path: &Path = Path::new("./fenestra.conf");
+    config::load::ensure_exists(config_path);
+    config::parse::parse_content(config_path);
     let hooks: Vec<HHOOK> = hooks::set_hooks();
     return hooks;
 }
