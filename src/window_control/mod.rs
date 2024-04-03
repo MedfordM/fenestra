@@ -1,4 +1,5 @@
 use windows::Win32::{Foundation::{GetLastError, HWND, WIN32_ERROR}, UI::WindowsAndMessaging::GetForegroundWindow};
+use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
 
 pub fn get_foreground_window() -> HWND {
     unsafe {
@@ -12,6 +13,13 @@ pub fn get_foreground_window() -> HWND {
     }
 }
 
-pub fn set_foreground_window() {
-  
+pub fn set_foreground_window(window_handle: HWND) {
+    let result = unsafe { SetForegroundWindow(window_handle) };
+    if result.as_bool() {
+        println!("Set foreground window");
+    } else {
+        println!("Error setting foreground window");
+        let error: WIN32_ERROR = unsafe { GetLastError() };
+        println!("Error code: {:?}", error);
+    }
 }
