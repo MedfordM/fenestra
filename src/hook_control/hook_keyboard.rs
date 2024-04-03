@@ -9,8 +9,8 @@ pub mod keyboard_hook {
       return LRESULT::default();
     }
     
-    let hook_struct = lparam.0 as *mut KBDLLHOOKSTRUCT;
-    let key_code = hook_struct.as_mut().unwrap().vkCode as i32;
+    let hook_struct: *mut KBDLLHOOKSTRUCT = lparam.0 as *mut KBDLLHOOKSTRUCT;
+    let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
     
     let key_action: KeyAction = KeyAction::from(wparam.0);
     let key: Key = Key::from(key_code);
@@ -31,10 +31,11 @@ pub mod keyboard_hook {
         }
       }
     }
+
     if key_code == KEY_WINDOWS || KEY_COMBO.contains(&Key::from(KEY_WINDOWS)) {
-      return windows::Win32::Foundation::LRESULT(10);
+      LRESULT(10)
     } else {
-      return LRESULT::default();
+      LRESULT::default()
     }
   }
 }
