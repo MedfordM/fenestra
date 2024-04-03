@@ -5,7 +5,7 @@ use windows::Win32::Foundation::{BOOL, GetLastError, HINSTANCE, HMODULE, HWND, L
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
 use windows::Win32::UI::WindowsAndMessaging::{CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetMessageA, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, SetWindowsHookExA, TranslateMessage, UnhookWindowsHookEx, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_STYLE, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA};
-use crate::{hooks, util};
+use crate::hooks;
 use crate::hooks::hook_keyboard::keyboard_hook::callback;
 
 fn handle_result<T>(result: Result<T, Error>) -> T {
@@ -30,7 +30,7 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
         style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
         lpfnWndProc: Some(window_callback),
         hInstance: HINSTANCE(instance.0),
-        hCursor: util::load_cursor(),
+        hCursor: load_cursor(),
         lpszClassName: PCSTR(class_name.as_ptr()),
         ..Default::default()
     };
@@ -49,7 +49,6 @@ extern "system" fn window_callback(window: HWND, message: u32, w_param: WPARAM, 
             LRESULT(0)
         }
         WM_DESTROY => unsafe {
-            hooks::unset_hooks();
             PostQuitMessage(0);
             LRESULT(0)
         }
@@ -80,12 +79,13 @@ fn get_message(message: *mut MSG, window_handle: HWND) -> BOOL {
     return unsafe { GetMessageA(message, window_handle, 0, 0) };
 }
 
-pub fn handle_events(window_handle: HWND) {
+pub fn handle_events(window_handle: HWND, hooks: Vec<HHOOK>) {
     let mut message: MSG = MSG::default();
     while get_message(&mut message, window_handle).into() {
         unsafe { TranslateMessage(&message); }
         unsafe { DispatchMessageA(&message); }
         if message.message == WM_NULL {
+            hooks::unset_hooks(hooks);
             println!("Exiting");
             break;
         }
