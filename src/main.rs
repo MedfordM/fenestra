@@ -55,16 +55,14 @@ fn main() -> Result<()> {
         )
     };
 
-    let mut message = MSG::default();
-    while unsafe { GetMessageA(&mut message, window_handle,  0, 0) != FALSE } {
+    let mut message: MSG = MSG::default();
+    while unsafe { GetMessageA(&mut message, window_handle, 0, 0).into() } {
         unsafe { TranslateMessage(&message); }
-        unsafe { DispatchMessageA(&message) };
-        if message.message == WM_CLOSE {
+        unsafe { DispatchMessageA(&message); }
+        if message.message == WM_NULL {
             break;
         }
-    }
-
-
+    };
     Ok(())
 }
 
