@@ -79,7 +79,7 @@ impl FromStr for Key {
   type Err = ();
 
   fn from_str(key: &str) -> Result<Self, Self::Err> {
-    let key_code: i32 = get_key_code(key.chars().next().unwrap());
+    let key_code: i32 = get_key_code(key);
     Ok(Key::from(key_code))
   }
 }
@@ -113,14 +113,14 @@ impl std::fmt::Debug for KeyPress {
 
 #[derive(Clone, PartialEq)]
 pub struct KeyCombo {
-  pub key: Key,
+  pub keys: Vec<Key>,
   pub action: WindowManagerAction,
 }
 
 impl KeyCombo {
-  pub fn new(key: Key, action: WindowManagerAction) -> Self {
+  pub fn new(keys: Vec<Key>, action: WindowManagerAction) -> Self {
     KeyCombo {
-      key,
+      keys,
       action
     }
   }
@@ -128,6 +128,6 @@ impl KeyCombo {
 
 impl std::fmt::Debug for KeyCombo {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} {:?}", self.key.name, self.action)
+    write!(f, "{:?}: {:?}", self.action, self.keys)
   }
 }
