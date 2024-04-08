@@ -1,16 +1,16 @@
 pub mod keyboard_hook {
+    use std::collections::HashSet;
+    use std::sync::Mutex;
+    use lazy_static::lazy_static;
     use windows::Win32::{Foundation::{LPARAM, LRESULT, WPARAM}, UI::WindowsAndMessaging::KBDLLHOOKSTRUCT};
     use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
-    use crate::state::APP_STATE;
+    use crate::state::KEYBINDS;
 
-    static mut KEY_COMBO: Vec<Key> = Vec::new();
-    static KEYBINDS: Vec<Keybind> = APP_STATE.keybinds;
+    lazy_static! {
+        static ref KEY_COMBO: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
+    }
 
-    pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
-        if code < 0 {
-            return LRESULT::default();
-        }
-
+    pub unsafe extern "system" fn callback(_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
         let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
         let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
 
@@ -20,23 +20,39 @@ pub mod keyboard_hook {
 
         match key_action {
             KeyAction::DOWN => {
-                if !KEY_COMBO.contains(&key_press.key) {
-                    KEY_COMBO.push(key_press.key.clone());
-                }
+                // The user pressed a key, add it to KEY_COMBO
+                KEY_COMBO.lock().unwrap().insert(key_press.key.clone());
             },
             KeyAction::UP => {
-                if KEY_COMBO.len() == 0 || !KEY_COMBO.contains(&key_press.key) {
+                /*
+                    Sanity check:
+                    - Have we pressed any keys down?
+                    - Were any of those keys the released key?
+                 */
+                if KEY_COMBO.lock().unwrap().len() == 0 || !KEY_COMBO.lock().unwrap().contains(&key_press.key) {
                     return LRESULT::default();
                 }
+                /*
+                    Attempt to find a keybind that transitively matches the pressed_combo:
+                    It's important that this checks for partial equality so that the keys can
+                    be pressed in any order and still match the defined keybind -
 
-                // if !MODIFIER_KEYS.contains(&key_code) {
-                //     println!("Read key combo: {:?}", KEY_COMBO);
-                // }
-                KEY_COMBO.remove(KEY_COMBO.iter().position(|x| x.code == key_press.key.code).unwrap());
+                    For example, if a user has an action defined as 'CTRL + ALT + H',
+                    'ALT + CTRL + H' would count as a match as well, and execute the action
+                 */
+                let bind_index = &KEYBINDS.iter().position(|key_bind| key_bind.keys.iter().all(|key| KEY_COMBO.lock().unwrap().contains(key)));
+                if bind_index.is_none() {
+                    KEY_COMBO.lock().unwrap().remove(&key_press.key);
+                    return LRESULT::default();
+                }
+                let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
+                println!("Read key combo: {:?}, executing associated action: {:?}", bind.keys, bind.action);
+                KEY_COMBO.lock().unwrap().remove(&key_press.key);
             }
         }
 
-        if key_code == KEY_WINDOWS || KEY_COMBO.contains(&Key::from(KEY_WINDOWS)) {
+        // Suppress every instance of the WIN key
+        if key_code == KEY_WINDOWS {
             LRESULT(10)
         } else {
             LRESULT::default()

@@ -34,7 +34,7 @@ impl std::fmt::Debug for KeyAction {
 }
 
 // Key
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Key {
   pub code: i32,
   pub name: String,

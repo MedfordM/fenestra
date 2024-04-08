@@ -1,4 +1,4 @@
-use crate::data::state::ApplicationState;
+use crate::state::{HANDLE, HOOKS};
 
 mod hooks;
 mod data;
@@ -8,6 +8,5 @@ mod state;
 mod config;
 
 fn main() {
-    static APP_STATE: ApplicationState = APP_STATE;
-    util::handle_events(&APP_STATE.handle, &APP_STATE.hooks);
+    util::handle_events(&HANDLE, &HOOKS);
 }
