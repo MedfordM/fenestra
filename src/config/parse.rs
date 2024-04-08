@@ -6,7 +6,7 @@ use std::str::FromStr;
 use crate::data::config::WindowManagerAction;
 use crate::data::key::{Key, KeyCombo};
 
-pub fn parse_content(config_path: &Path) {
+pub fn parse_content(config_path: &Path) -> Vec<KeyCombo> {
     let config_content_result: io::Result<String> = fs::read_to_string(config_path);
     if config_content_result.is_err() {
         println!("Failed to read config file");
@@ -75,7 +75,7 @@ pub fn parse_content(config_path: &Path) {
         let keys = key_combo.iter().map(|key| Key::from_str(key.as_str()).unwrap()).collect();
         key_combos.push(KeyCombo::new(keys, action));
     });
-    println!("Config variables: {:?}", key_combos);
+   return key_combos;
 }
 
 fn is_variable(key: &str, config_content: &String) -> bool {

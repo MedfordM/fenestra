@@ -38,7 +38,7 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
         lpszClassName: PCSTR(class_name.as_ptr()),
         ..Default::default()
     };
-   let result = unsafe { RegisterClassA(&window_class) };
+    let result = unsafe { RegisterClassA(&window_class) };
     if result == 0 {
         println!("Error registering window class");
         let error: WIN32_ERROR = unsafe { GetLastError() };
