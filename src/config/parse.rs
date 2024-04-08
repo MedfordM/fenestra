@@ -31,19 +31,30 @@ pub fn parse_content(config_path: &Path) {
         )
         .collect();
 
+    println!("Found {} config variables", &config_variables.len());
+
     config_definitions = config_definitions.iter().map(|definition| {
         let config_action = definition.0.to_owned();
-        let mut key_combo = definition.1.to_owned();
-        key_combo = key_combo.iter().map(|mut key| {
-            if key.starts_with("$") {
-                let var_name = String::from(key.strip_prefix("$").unwrap());
-                if config_variables.contains_key(&var_name) {
-                    return config_variables.get(key).unwrap().to_string();
-                }
+        let key_combo = definition.1.to_owned();
+        let mut expanded_key_combo: Vec<String> = Vec::new();
+        key_combo.iter().for_each(|mut key| {
+            if !key.starts_with("$") {
+                expanded_key_combo.push(key.to_string());
+                return;
             }
-            return key.to_string();
-        }).collect();
-        return (config_action, key_combo);
+
+            let var_name = String::from(key.strip_prefix("$").unwrap());
+            if config_variables.contains_key(&var_name) {
+                let result = config_variables.get(&var_name);
+                if result.is_none() {
+                    println!("Config referenced non-existent variable {}", var_name);
+                    exit(100);
+                }
+                let mut expanded_var_keys: Vec<String> = result.unwrap().split("+").map(|k|k.trim().to_string()).collect();
+                expanded_key_combo.append(&mut expanded_var_keys);
+            }
+        });
+        return (config_action, expanded_key_combo);
     }).collect();
 
     let config_action_mappings: Vec<(String, Vec<String>)> = config_definitions.iter().
@@ -69,5 +80,6 @@ pub fn parse_content(config_path: &Path) {
 
 fn is_variable(key: &str, config_content: &String) -> bool {
     let potential_var_name: String = String::from("$") + key;
-    return config_content.contains(&potential_var_name.as_str());
+    let is_variable: bool = config_content.contains(&potential_var_name.as_str());
+    return is_variable;
 }

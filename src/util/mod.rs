@@ -7,6 +7,7 @@ use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetKeyNameTextA, MapVirtualKeyA, MAPVK_VK_TO_VSC, VkKeyScanA};
 use windows::Win32::UI::WindowsAndMessaging::{CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetMessageA, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, SetWindowsHookExA, TranslateMessage, UnhookWindowsHookEx, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_STYLE, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA};
+use crate::data::key::{KEY_ALT, KEY_CONTROL, KEY_SHIFT, KEY_SPACE, KEY_WINDOWS};
 
 use crate::hooks;
 use crate::hooks::hook_keyboard::keyboard_hook::callback;
@@ -120,9 +121,18 @@ pub fn get_key_name(key_code: i32) -> String {
 }
 
 pub fn get_key_code(key: &str) -> i32 {
-    let result = unsafe { VkKeyScanA(key.as_bytes()[0] as i8) };
+    let result = match key {
+        "SPACE" => KEY_SPACE,
+        "WIN" => KEY_WINDOWS,
+        "CTRL" => KEY_CONTROL,
+        "ALT" => KEY_ALT,
+        "SHIFT" => KEY_SHIFT,
+        _ => unsafe { VkKeyScanA(key.as_bytes()[0] as i8) as i32 }
+    };
+
     if result == 0 {
         println!("Failed to fetch key code for character {}", key);
     }
-    result as i32
+
+    return result;
 }
