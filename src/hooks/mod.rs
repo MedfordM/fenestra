@@ -11,7 +11,7 @@ pub fn set_hooks() -> Vec<HHOOK>  {
     return hooks;
 }
 
-pub fn unset_hooks(hook_ids: Vec<HHOOK>) {
+pub fn unset_hooks(hook_ids: &Vec<HHOOK>) {
     println!("Unsetting hooks");
     hook_ids.iter().for_each(|hook_id| {
         util::unset_hook(hook_id);

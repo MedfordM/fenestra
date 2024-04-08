@@ -5,11 +5,11 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use crate::hooks;
 use crate::util;
 use crate::config;
-use crate::data::key::KeyCombo;
+use crate::data::key::Keybind;
 
 const APP_NAME: &str = "WindowManager\0";
 
-pub fn application() -> HWND {
+pub fn window() -> HWND {
     let app_instance: HMODULE = util::get_handle();
     util::register_class(app_instance, APP_NAME);
 
@@ -26,10 +26,14 @@ pub fn application() -> HWND {
     );
 }
 
-pub fn state() -> Vec<HHOOK> {
-    let config_path: &Path = Path::new("./fenestra.conf");
-    config::load::ensure_exists(config_path);
-    let configured_key_combos: Vec<KeyCombo> = config::parse::parse_content(config_path);
+pub fn hooks() -> Vec<HHOOK> {
     let hooks: Vec<HHOOK> = hooks::set_hooks();
     return hooks;
+}
+
+pub fn keybinds() -> Vec<Keybind> {
+    let config_path: &Path = Path::new("./fenestra.conf");
+    config::load::ensure_exists(config_path);
+    let configured_key_binds: Vec<Keybind> = config::parse::parse_content(config_path);
+    return configured_key_binds;
 }

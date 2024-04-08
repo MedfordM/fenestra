@@ -112,21 +112,21 @@ impl std::fmt::Debug for KeyPress {
 }
 
 #[derive(Clone, PartialEq)]
-pub struct KeyCombo {
+pub struct Keybind {
   pub keys: Vec<Key>,
   pub action: WindowManagerAction,
 }
 
-impl KeyCombo {
+impl Keybind {
   pub fn new(keys: Vec<Key>, action: WindowManagerAction) -> Self {
-    KeyCombo {
+    Keybind {
       keys,
       action
     }
   }
 }
 
-impl std::fmt::Debug for KeyCombo {
+impl std::fmt::Debug for Keybind {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "{:?}: {:?}", self.action, self.keys)
   }

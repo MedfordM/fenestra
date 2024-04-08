@@ -1,8 +1,10 @@
 pub mod keyboard_hook {
     use windows::Win32::{Foundation::{LPARAM, LRESULT, WPARAM}, UI::WindowsAndMessaging::KBDLLHOOKSTRUCT};
-    use crate::data::key::{Key, KeyAction, KeyPress, KEY_WINDOWS, MODIFIER_KEYS};
+    use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
+    use crate::state::APP_STATE;
 
     static mut KEY_COMBO: Vec<Key> = Vec::new();
+    static KEYBINDS: Vec<Keybind> = APP_STATE.keybinds;
 
     pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
         if code < 0 {
@@ -23,12 +25,14 @@ pub mod keyboard_hook {
                 }
             },
             KeyAction::UP => {
-                if KEY_COMBO.len() > 0 && KEY_COMBO.contains(&key_press.key) {
-                    if !MODIFIER_KEYS.contains(&key_code) {
-                        println!("Read key combo: {:?}", KEY_COMBO);
-                    }
-                    KEY_COMBO.remove(KEY_COMBO.iter().position(|x| x.code == key_press.key.code).unwrap());
+                if KEY_COMBO.len() == 0 || !KEY_COMBO.contains(&key_press.key) {
+                    return LRESULT::default();
                 }
+
+                // if !MODIFIER_KEYS.contains(&key_code) {
+                //     println!("Read key combo: {:?}", KEY_COMBO);
+                // }
+                KEY_COMBO.remove(KEY_COMBO.iter().position(|x| x.code == key_press.key.code).unwrap());
             }
         }
 

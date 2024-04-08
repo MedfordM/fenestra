@@ -1,5 +1,4 @@
-use ::windows::Win32::Foundation::HWND;
-use ::windows::Win32::UI::WindowsAndMessaging::HHOOK;
+use crate::data::state::ApplicationState;
 
 mod hooks;
 mod data;
@@ -9,7 +8,6 @@ mod state;
 mod config;
 
 fn main() {
-    let app_handle: HWND = state::init::application();
-    let app_hooks: Vec<HHOOK> = state::init::state();
-    util::handle_events(app_handle, app_hooks);
+    static APP_STATE: ApplicationState = APP_STATE;
+    util::handle_events(&APP_STATE.handle, &APP_STATE.hooks);
 }

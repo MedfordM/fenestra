@@ -79,11 +79,11 @@ pub fn create_window(ex_style: WINDOW_EX_STYLE, class_name: &str, window_name: &
     };
 }
 
-fn get_message(message: *mut MSG, window_handle: HWND) -> BOOL {
-    return unsafe { GetMessageA(message, window_handle, 0, 0) };
+fn get_message(message: *mut MSG, window_handle: &HWND) -> BOOL {
+    return unsafe { GetMessageA(message, window_handle.to_owned(), 0, 0) };
 }
 
-pub fn handle_events(window_handle: HWND, hooks: Vec<HHOOK>) {
+pub fn handle_events(window_handle: &HWND, hooks: &Vec<HHOOK>) {
     let mut message: MSG = MSG::default();
     while get_message(&mut message, window_handle).into() {
         unsafe { TranslateMessage(&message); }

@@ -4,9 +4,9 @@ use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
 use crate::data::config::WindowManagerAction;
-use crate::data::key::{Key, KeyCombo};
+use crate::data::key::{Key, Keybind};
 
-pub fn parse_content(config_path: &Path) -> Vec<KeyCombo> {
+pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
     let config_content_result: io::Result<String> = fs::read_to_string(config_path);
     if config_content_result.is_err() {
         println!("Failed to read config file");
@@ -15,7 +15,7 @@ pub fn parse_content(config_path: &Path) -> Vec<KeyCombo> {
 
     let mut config_content: String = config_content_result.unwrap();
     let mut config_lines: Vec<String> = config_content.split("\r\n").filter(|line| line.len() > 0).map(|line|String::from(line)).collect();
-    let mut key_combos: Vec<KeyCombo> = Vec::new();
+    let mut key_combos: Vec<Keybind> = Vec::new();
     let mut config_definitions: Vec<(String, Vec<String>)> = config_lines.iter().map(|config_line| {
         let definition:Vec<&str> = config_line.split(":").collect();
         let config_action = definition[0].trim().to_string();
@@ -73,7 +73,7 @@ pub fn parse_content(config_path: &Path) -> Vec<KeyCombo> {
         }
         let action: WindowManagerAction = WindowManagerAction::from_str(config_action.as_str()).unwrap();
         let keys = key_combo.iter().map(|key| Key::from_str(key.as_str()).unwrap()).collect();
-        key_combos.push(KeyCombo::new(keys, action));
+        key_combos.push(Keybind::new(keys, action));
     });
    return key_combos;
 }
