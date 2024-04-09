@@ -4,7 +4,7 @@ use crate::util;
 
 pub mod hook_keyboard;
 
-pub fn set_hooks() -> Vec<HHOOK>  {
+pub fn set_hooks() -> Vec<HHOOK> {
     println!("Setting hooks");
     let mut hooks: Vec<HHOOK> = Vec::new();
     hooks.push(util::set_keyboard_hook());

@@ -1,6 +1,6 @@
+use crate::data::key::Keybind;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::HHOOK;
-use crate::data::key::Keybind;
 
 pub struct ApplicationState {
     pub handle: HWND,
@@ -13,7 +13,7 @@ impl ApplicationState {
         ApplicationState {
             handle,
             hooks,
-            keybinds
+            keybinds,
         }
     }
 }

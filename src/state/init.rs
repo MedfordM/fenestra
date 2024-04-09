@@ -2,10 +2,10 @@ use std::path::Path;
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-use crate::hooks;
-use crate::util;
 use crate::config;
 use crate::data::key::Keybind;
+use crate::hooks;
+use crate::util;
 
 const APP_NAME: &str = "WindowManager\0";
 
@@ -22,7 +22,7 @@ pub fn window() -> HWND {
         CW_USEDEFAULT,
         400,
         680,
-        app_instance
+        app_instance,
     );
 }
 

@@ -1,7 +1,7 @@
+use crate::data::key::Keybind;
 use lazy_static::lazy_static;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::HHOOK;
-use crate::data::key::Keybind;
 
 mod init;
 lazy_static! {

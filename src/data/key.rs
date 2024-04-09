@@ -1,13 +1,13 @@
-use std::str::FromStr;
-use windows::System::VirtualKey;
 use crate::data::config::WindowManagerAction;
 use crate::util::{get_key_code, get_key_name};
+use std::str::FromStr;
+use windows::System::VirtualKey;
 
 // Key action
 #[derive(Clone, Copy, PartialEq)]
 pub enum KeyAction {
-  UP,
-  DOWN,
+    UP,
+    DOWN,
 }
 
 // action codes
@@ -15,38 +15,38 @@ const KEY_UP: usize = 0x0101;
 const KEY_DOWN: usize = 0x0100;
 
 impl From<usize> for KeyAction {
-  fn from(code: usize) -> Self {
-    match code {
-      KEY_UP => KeyAction::UP,
-      KEY_DOWN => KeyAction::DOWN,
-      _ => KeyAction::DOWN,
+    fn from(code: usize) -> Self {
+        match code {
+            KEY_UP => KeyAction::UP,
+            KEY_DOWN => KeyAction::DOWN,
+            _ => KeyAction::DOWN,
+        }
     }
-  }
 }
 
 impl std::fmt::Debug for KeyAction {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      KeyAction::UP => write!(f, "UP"),
-      KeyAction::DOWN => write!(f, "DOWN"),
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyAction::UP => write!(f, "UP"),
+            KeyAction::DOWN => write!(f, "DOWN"),
+        }
     }
-  }
 }
 
 // Key
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Key {
-  pub code: i32,
-  pub name: String,
+    pub code: i32,
+    pub name: String,
 }
 
 impl Default for Key {
-  fn default() -> Self {
-    Key {
-      code: 0,
-      name: "".to_string(),
+    fn default() -> Self {
+        Key {
+            code: 0,
+            name: "".to_string(),
+        }
     }
-  }
 }
 
 // key codes
@@ -58,76 +58,67 @@ pub const KEY_SHIFT: i32 = VirtualKey::LeftShift.0;
 pub const MODIFIER_KEYS: [i32; 4] = [KEY_CONTROL, KEY_ALT, KEY_SHIFT, KEY_WINDOWS];
 
 impl From<i32> for Key {
-  fn from(code: i32) -> Self {
-    let name = match code {
-      KEY_SPACE => "SPACE".to_string(),
-      KEY_WINDOWS => "WIN".to_string(),
-      KEY_CONTROL => "CTRL".to_string(),
-      KEY_ALT => "ALT".to_string(),
-      KEY_SHIFT => "SHIFT".to_string(),
-      _ => String::from(get_key_name(code))
-    };
+    fn from(code: i32) -> Self {
+        let name = match code {
+            KEY_SPACE => "SPACE".to_string(),
+            KEY_WINDOWS => "WIN".to_string(),
+            KEY_CONTROL => "CTRL".to_string(),
+            KEY_ALT => "ALT".to_string(),
+            KEY_SHIFT => "SHIFT".to_string(),
+            _ => String::from(get_key_name(code)),
+        };
 
-    Key {
-      code,
-      name,
+        Key { code, name }
     }
-  }
 }
 
 impl FromStr for Key {
-  type Err = ();
+    type Err = ();
 
-  fn from_str(key: &str) -> Result<Self, Self::Err> {
-    let key_code: i32 = get_key_code(key);
-    Ok(Key::from(key_code))
-  }
+    fn from_str(key: &str) -> Result<Self, Self::Err> {
+        let key_code: i32 = get_key_code(key);
+        Ok(Key::from(key_code))
+    }
 }
 impl std::fmt::Debug for Key {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{}", self.name)
-  }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 // Key press
 #[derive(Clone, PartialEq)]
 pub struct KeyPress {
-  pub action: KeyAction,
-  pub key: Key,
+    pub action: KeyAction,
+    pub key: Key,
 }
 
 impl KeyPress {
-  pub fn new(action: KeyAction, key: Key) -> Self {
-    KeyPress {
-      action,
-      key,
+    pub fn new(action: KeyAction, key: Key) -> Self {
+        KeyPress { action, key }
     }
-  }
 }
 
 impl std::fmt::Debug for KeyPress {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{} {:?}", self.key.name, self.action)
-  }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {:?}", self.key.name, self.action)
+    }
 }
 
 #[derive(Clone, PartialEq)]
 pub struct Keybind {
-  pub keys: Vec<Key>,
-  pub action: WindowManagerAction,
+    pub keys: Vec<Key>,
+    pub action: WindowManagerAction,
 }
 
 impl Keybind {
-  pub fn new(keys: Vec<Key>, action: WindowManagerAction) -> Self {
-    Keybind {
-      keys,
-      action
+    pub fn new(keys: Vec<Key>, action: WindowManagerAction) -> Self {
+        Keybind { keys, action }
     }
-  }
 }
 
 impl std::fmt::Debug for Keybind {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:?}: {:?}", self.action, self.keys)
-  }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {:?}", self.action, self.keys)
+    }
 }

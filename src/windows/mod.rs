@@ -1,5 +1,8 @@
-use windows::Win32::{Foundation::{GetLastError, HWND, WIN32_ERROR}, UI::WindowsAndMessaging::GetForegroundWindow};
 use windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow;
+use windows::Win32::{
+    Foundation::{GetLastError, HWND, WIN32_ERROR},
+    UI::WindowsAndMessaging::GetForegroundWindow,
+};
 
 pub fn get_foreground_window() -> HWND {
     unsafe {
