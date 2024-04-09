@@ -20,7 +20,7 @@ pub mod keyboard_hook {
 
         match key_action {
             KeyAction::DOWN => {
-                // The user pressed a key, add it to KEY_COMBO
+                // User pressed a key, add it to KEY_COMBO
                 KEY_COMBO.lock().unwrap().insert(key_press.key.clone());
             },
             KeyAction::UP => {
@@ -42,9 +42,11 @@ pub mod keyboard_hook {
                  */
                 let bind_index = &KEYBINDS.iter().position(|key_bind| key_bind.keys.iter().all(|key| KEY_COMBO.lock().unwrap().contains(key)));
                 if bind_index.is_none() {
+                    // No matching keybind, mark the key as released and carry on
                     KEY_COMBO.lock().unwrap().remove(&key_press.key);
                     return LRESULT::default();
                 }
+                // User pressed a defined keybind, mark the key as released and execute the action
                 let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
                 println!("Read key combo: {:?}, executing associated action: {:?}", bind.keys, bind.action);
                 KEY_COMBO.lock().unwrap().remove(&key_press.key);
