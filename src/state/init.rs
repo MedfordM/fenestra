@@ -1,19 +1,20 @@
 use std::path::Path;
+
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::config;
 use crate::data::key::Keybind;
 use crate::hooks;
-use crate::util;
+use crate::win_api;
 
 const APP_NAME: &str = "WindowManager\0";
 
 pub fn window() -> HWND {
-    let app_instance: HMODULE = util::get_handle();
-    util::register_class(app_instance, APP_NAME);
+    let app_instance: HMODULE = win_api::window::get_handle();
+    win_api::window::register_class(app_instance, APP_NAME);
 
-    return util::create_window(
+    return win_api::window::create_window(
         WINDOW_EX_STYLE::default(),
         APP_NAME,
         APP_NAME,

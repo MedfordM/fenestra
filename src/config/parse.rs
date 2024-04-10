@@ -1,10 +1,11 @@
-use crate::data::config::WindowManagerAction;
-use crate::data::key::{Key, Keybind};
+use std::{fs, io};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
-use std::{fs, io};
+
+use crate::data::actions::WindowManagerAction;
+use crate::data::key::{Key, Keybind};
 
 pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
     let config_content_result: io::Result<String> = fs::read_to_string(config_path);
@@ -13,8 +14,8 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
         exit(1);
     }
 
-    let mut config_content: String = config_content_result.unwrap();
-    let mut config_lines: Vec<String> = config_content
+    let config_content: String = config_content_result.unwrap();
+    let config_lines: Vec<String> = config_content
         .split("\r\n")
         .filter(|line| line.len() > 0)
         .map(|line| String::from(line))
@@ -49,15 +50,13 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
         })
         .collect();
 
-    println!("Found {} config variables", &config_variables.len());
-
     config_definitions = config_definitions
         .iter()
         .map(|definition| {
             let config_action = definition.0.to_owned();
             let key_combo = definition.1.to_owned();
             let mut expanded_key_combo: Vec<String> = Vec::new();
-            key_combo.iter().for_each(|mut key| {
+            key_combo.iter().for_each(|key| {
                 if !key.starts_with("$") {
                     expanded_key_combo.push(key.to_string());
                     return;

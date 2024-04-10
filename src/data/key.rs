@@ -1,7 +1,9 @@
-use crate::data::config::WindowManagerAction;
-use crate::util::{get_key_code, get_key_name};
 use std::str::FromStr;
+
 use windows::System::VirtualKey;
+
+use crate::data::actions::WindowManagerAction;
+use crate::win_api::keyboard::{get_key_code, get_key_name};
 
 // Key action
 #[derive(Clone, Copy, PartialEq)]
@@ -55,7 +57,6 @@ pub const KEY_WINDOWS: i32 = VirtualKey::LeftWindows.0;
 pub const KEY_CONTROL: i32 = VirtualKey::LeftControl.0;
 pub const KEY_ALT: i32 = VirtualKey::LeftMenu.0;
 pub const KEY_SHIFT: i32 = VirtualKey::LeftShift.0;
-pub const MODIFIER_KEYS: [i32; 4] = [KEY_CONTROL, KEY_ALT, KEY_SHIFT, KEY_WINDOWS];
 
 impl From<i32> for Key {
     fn from(code: i32) -> Self {

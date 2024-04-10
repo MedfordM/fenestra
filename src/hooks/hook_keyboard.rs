@@ -1,23 +1,26 @@
 pub mod keyboard_hook {
-    use crate::data::key::{Key, KeyAction, KeyPress, Keybind, KEY_WINDOWS};
-    use crate::state::KEYBINDS;
-    use lazy_static::lazy_static;
     use std::collections::HashSet;
     use std::sync::Mutex;
+
+    use lazy_static::lazy_static;
     use windows::Win32::{
         Foundation::{LPARAM, LRESULT, WPARAM},
         UI::WindowsAndMessaging::KBDLLHOOKSTRUCT,
     };
+    use windows::Win32::UI::WindowsAndMessaging::CallNextHookEx;
+
+    use crate::data::actions::Execute;
+    use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
+    use crate::state::KEYBINDS;
 
     lazy_static! {
         static ref KEY_COMBO: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
     }
 
-    pub unsafe extern "system" fn callback(
-        _code: i32,
-        w_param: WPARAM,
-        l_param: LPARAM,
-    ) -> LRESULT {
+    pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+        if code < 0 {
+            return unsafe { CallNextHookEx(None, code, w_param, l_param) };
+        }
         let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
         let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
 
@@ -39,7 +42,7 @@ pub mod keyboard_hook {
                 if KEY_COMBO.lock().unwrap().len() == 0
                     || !KEY_COMBO.lock().unwrap().contains(&key_press.key)
                 {
-                    return LRESULT::default();
+                    return unsafe { CallNextHookEx(None, code, w_param, l_param) };
                 }
                 /*
                    Attempt to find a keybind that transitively matches the pressed_combo:
@@ -58,15 +61,12 @@ pub mod keyboard_hook {
                 if bind_index.is_none() {
                     // No matching keybind, mark the key as released and carry on
                     KEY_COMBO.lock().unwrap().remove(&key_press.key);
-                    return LRESULT::default();
+                    return unsafe { CallNextHookEx(None, code, w_param, l_param) };
                 }
                 // User pressed a defined keybind, mark the key as released and execute the action
                 let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
-                println!(
-                    "Read key combo: {:?}, executing associated action: {:?}",
-                    bind.keys, bind.action
-                );
                 KEY_COMBO.lock().unwrap().remove(&key_press.key);
+                bind.action.execute();
             }
         }
 
@@ -74,7 +74,7 @@ pub mod keyboard_hook {
         if key_code == KEY_WINDOWS {
             LRESULT(10)
         } else {
-            LRESULT::default()
+            unsafe { CallNextHookEx(None, code, w_param, l_param) }
         }
     }
 }
