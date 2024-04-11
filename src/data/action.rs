@@ -7,7 +7,7 @@ pub trait Execute {
 
 
 pub struct Workspace {
-    id: u32
+    id: String
 }
 
 impl Execute for Workspace {
