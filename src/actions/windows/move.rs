@@ -1,38 +1,33 @@
 use std::str::FromStr;
 
 use crate::data::action::Execute;
-use crate::data::window::Window;
-use crate::state::MONITORS;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
-pub struct Focus {
+pub struct Move {
     pub direction: String,
 }
 
-impl Execute for Focus {
+impl Execute for Move {
     fn execute(&self) {
         let current = get_foreground_window();
-        let target: Window = current.find_nearest_in_direction(&self.direction);
-        println!("Found monitors {:?}", MONITORS.lock().unwrap());
-        target.focus();
     }
 }
 
-impl FromStr for Focus {
+impl FromStr for Move {
     type Err = ();
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_ascii_uppercase().as_str() {
-            "FOCUS_LEFT" => Ok(Focus {
+            "MOVE_LEFT" => Ok(Move {
                 direction: "left".to_string(),
             }),
-            "FOCUS_DOWN" => Ok(Focus {
+            "MOVE_DOWN" => Ok(Move {
                 direction: "down".to_string(),
             }),
-            "FOCUS_UP" => Ok(Focus {
+            "MOVE_UP" => Ok(Move {
                 direction: "up".to_string(),
             }),
-            "FOCUS_RIGHT" => Ok(Focus {
+            "MOVE_RIGHT" => Ok(Move {
                 direction: "right".to_string(),
             }),
             _ => Err(()),
@@ -40,8 +35,8 @@ impl FromStr for Focus {
     }
 }
 
-impl std::fmt::Debug for Focus {
+impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Focus {}", self.direction)
+        write!(f, "Move {}", self.direction)
     }
 }

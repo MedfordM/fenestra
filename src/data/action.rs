@@ -1,20 +1,6 @@
 use std::str::FromStr;
+
 use crate::actions::windows::focus::Focus;
-
-pub trait Execute {
-    fn execute(&self);
-}
-
-
-pub struct Workspace {
-    id: String
-}
-
-impl Execute for Workspace {
-    fn execute(&self) {
-        
-    }
-}
 
 #[derive(Clone, PartialEq)]
 pub enum WindowManagerAction {
@@ -48,4 +34,8 @@ impl std::fmt::Debug for WindowManagerAction {
             WindowManagerAction::Focus(focus) => focus.fmt(f),
         };
     }
+}
+
+pub trait Execute {
+    fn execute(&self);
 }

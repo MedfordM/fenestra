@@ -1,25 +1,30 @@
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::WINDOWPLACEMENT;
 
-use crate::win_api::window::{get_all_windows, set_foreground_window};
+use crate::win_api::window::{get_all, get_window, set_foreground_window};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Window {
     pub title: String,
     pub hwnd: HWND,
     pub thread_id: u32,
     pub process_id: u32,
     pub placement: WINDOWPLACEMENT,
+    // pub monitor: Monitor,
 }
 
 impl Window {
+    pub fn get_all_windows() -> Vec<Window> {
+        return get_all();
+    }
+
     pub fn focus(&self) {
         set_foreground_window(self);
     }
 
     pub fn find_nearest_in_direction(&self, direction: &String) -> Window {
         let mut nearest_window: (Window, i32) = (self.clone(), i32::MAX);
-        let all_windows: Vec<Window> = get_all_windows();
+        let all_windows: Vec<Window> = Window::get_all_windows();
         all_windows.iter().for_each(|candidate_window| {
             // Skip evaluation if candidate window is in the same place as the active one
             if candidate_window.placement.rcNormalPosition == self.placement.rcNormalPosition {
@@ -53,5 +58,9 @@ impl Window {
             }
         });
         return nearest_window.0;
+    }
+
+    pub fn from(hwnd: HWND) -> Self {
+        return get_window(hwnd);
     }
 }

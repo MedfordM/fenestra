@@ -6,6 +6,7 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::HHOOK;
 
 use crate::data::key::{Key, Keybind};
+use crate::data::monitor::Monitor;
 
 mod init;
 lazy_static! {
@@ -13,4 +14,5 @@ lazy_static! {
     pub static ref HOOKS: Vec<HHOOK> = init::hooks();
     pub static ref KEYBINDS: Vec<Keybind> = init::keybinds();
     pub static ref PRESSED_KEYS: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
+    pub static ref MONITORS: Mutex<Vec<Monitor>> = Mutex::new(init::monitors());
 }

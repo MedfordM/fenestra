@@ -1,10 +1,11 @@
 use std::fmt::{Debug, Formatter};
+
 use crate::data::window::Window;
 
-#[derive(Clone)]
-struct Workspace {
+#[derive(Clone, PartialEq, Default)]
+pub struct Workspace {
     pub id: u32,
-    pub windows: Vec<Window>
+    pub windows: Vec<Window>,
 }
 
 impl Debug for Workspace {

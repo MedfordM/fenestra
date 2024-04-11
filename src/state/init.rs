@@ -5,6 +5,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 use crate::config;
 use crate::data::key::Keybind;
+use crate::data::monitor::Monitor;
 use crate::hooks;
 use crate::win_api;
 
@@ -37,4 +38,9 @@ pub fn keybinds() -> Vec<Keybind> {
     config::load::ensure_exists(config_path);
     let configured_key_binds: Vec<Keybind> = config::parse::parse_content(config_path);
     return configured_key_binds;
+}
+
+pub fn monitors() -> Vec<Monitor> {
+    let monitors: Vec<Monitor> = Monitor::get_all_monitors();
+    return monitors;
 }

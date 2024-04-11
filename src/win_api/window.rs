@@ -121,11 +121,15 @@ pub fn set_foreground_window(app: &Window) {
     }
 }
 
-static mut APPLICATIONS: Vec<Window> = Vec::new();
-pub fn get_all_windows() -> Vec<Window> {
+pub fn get_style(handle: HWND) -> i32 {
+    return get_window_info(handle, GWL_STYLE);
+}
+
+static mut WINDOWS: Vec<Window> = Vec::new();
+pub fn get_all() -> Vec<Window> {
     unsafe {
-        APPLICATIONS.clear();
-    };
+        WINDOWS.clear();
+    }
     extern "system" fn enum_windows_callback(hwnd: HWND, _: LPARAM) -> BOOL {
         let window_style: u32 = get_style(hwnd) as u32;
         if window_style & WS_VISIBLE.0 == 0 {
@@ -137,29 +141,27 @@ pub fn get_all_windows() -> Vec<Window> {
         if window_style & WS_MAXIMIZEBOX.0 == 0 {
             return BOOL::from(true);
         }
-
         let application: Window = get_window(hwnd);
         if application.title.len() == 0 {
             return BOOL::from(true);
         }
-
         unsafe {
-            APPLICATIONS.push(application);
+            WINDOWS.push(application);
         };
         return BOOL::from(true);
     }
-
     handle_result(unsafe {
         EnumDesktopWindows(None, Some(enum_windows_callback), LPARAM::default())
     });
-    unsafe { return APPLICATIONS.clone() };
+    unsafe {
+        return WINDOWS.clone();
+    }
 }
 
 pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     let (thread_id, process_id) = get_window_thread_id(hwnd);
-
     Window {
         title,
         hwnd,
@@ -172,7 +174,6 @@ pub fn get_window(hwnd: HWND) -> Window {
 fn get_window_title(handle: HWND) -> String {
     let mut buffer = vec![0; 32];
     let result = unsafe { GetWindowTextA(handle, &mut buffer) };
-
     if result == 0 {
         return String::new();
     }
@@ -206,8 +207,4 @@ fn get_message(message: *mut MSG, window_handle: &HWND) -> BOOL {
 fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
     let info = unsafe { GetWindowLongA(handle, offset) };
     return info;
-}
-
-fn get_style(handle: HWND) -> i32 {
-    return get_window_info(handle, GWL_STYLE);
 }
