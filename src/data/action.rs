@@ -1,46 +1,18 @@
 use std::str::FromStr;
-
-use crate::util;
+use crate::actions::windows::focus::Focus;
 
 pub trait Execute {
     fn execute(&self);
 }
 
-#[derive(Clone, PartialEq)]
-pub struct Focus {
-    pub direction: String,
+
+pub struct Workspace {
+    id: u32
 }
 
-impl Execute for Focus {
+impl Execute for Workspace {
     fn execute(&self) {
-        util::windows::focus::focus_direction(self);
-    }
-}
-
-impl FromStr for Focus {
-    type Err = ();
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input.to_ascii_uppercase().as_str() {
-            "FOCUS_LEFT" => Ok(Focus {
-                direction: "left".to_string(),
-            }),
-            "FOCUS_DOWN" => Ok(Focus {
-                direction: "down".to_string(),
-            }),
-            "FOCUS_UP" => Ok(Focus {
-                direction: "up".to_string(),
-            }),
-            "FOCUS_RIGHT" => Ok(Focus {
-                direction: "right".to_string(),
-            }),
-            _ => Err(()),
-        }
-    }
-}
-
-impl std::fmt::Debug for Focus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Focus {}", self.direction)
+        
     }
 }
 

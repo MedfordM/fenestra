@@ -1,3 +1,4 @@
 pub mod action;
-pub mod application;
+pub mod window;
 pub mod key;
+pub mod workspace;

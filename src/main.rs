@@ -4,8 +4,8 @@ mod config;
 mod data;
 mod hooks;
 mod state;
-mod util;
 mod win_api;
+mod actions;
 
 fn main() {
     win_api::window::handle_window_events(&HANDLE, &HOOKS);

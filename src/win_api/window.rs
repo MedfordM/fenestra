@@ -17,7 +17,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
 };
 
-use crate::data::application::Application;
+use crate::data::window::Window;
 use crate::hooks;
 use crate::win_api::misc::handle_result;
 
@@ -114,7 +114,7 @@ fn get_message(message: *mut MSG, window_handle: &HWND) -> BOOL {
     return unsafe { GetMessageA(message, window_handle.to_owned(), 0, 0) };
 }
 
-pub fn get_foreground_window() -> Application {
+pub fn get_foreground_window() -> Window {
     unsafe {
         let result = GetForegroundWindow();
         if result == HWND::default() {
@@ -125,7 +125,7 @@ pub fn get_foreground_window() -> Application {
     }
 }
 
-pub fn set_foreground_window(app: Application) {
+pub fn set_foreground_window(app: Window) {
     unsafe {
         let current_window = GetWindowThreadProcessId(GetForegroundWindow(), None);
         attach_input(current_window);
@@ -154,8 +154,8 @@ fn get_style(handle: HWND) -> i32 {
     return get_window_info(handle, GWL_STYLE);
 }
 
-static mut APPLICATIONS: Vec<Application> = Vec::new();
-pub fn get_applications() -> Vec<Application> {
+static mut APPLICATIONS: Vec<Window> = Vec::new();
+pub fn get_applications() -> Vec<Window> {
     unsafe {
         APPLICATIONS.clear();
     };
@@ -171,7 +171,7 @@ pub fn get_applications() -> Vec<Application> {
             return BOOL::from(true);
         }
 
-        let application: Application = get_application(hwnd);
+        let application: Window = get_application(hwnd);
         if application.title.len() == 0 {
             return BOOL::from(true);
         }
@@ -188,12 +188,12 @@ pub fn get_applications() -> Vec<Application> {
     unsafe { return APPLICATIONS.clone() };
 }
 
-pub fn get_application(hwnd: HWND) -> Application {
+pub fn get_application(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     let (thread_id, process_id) = get_window_thread_id(hwnd);
 
-    Application {
+    Window {
         title,
         hwnd,
         thread_id,
@@ -219,10 +219,10 @@ fn get_window_placement(handle: HWND) -> WINDOWPLACEMENT {
     return placement;
 }
 
-pub fn find_nearest_window_in_direction(direction: &String) -> Application {
-    let active_window: Application = get_foreground_window();
-    let mut nearest_window: Option<Application> = None;
-    let all_windows: Vec<Application> = get_applications();
+pub fn find_nearest_window_in_direction(direction: &String) -> Window {
+    let active_window: Window = get_foreground_window();
+    let mut nearest_window: Option<Window> = None;
+    let all_windows: Vec<Window> = get_applications();
 
     all_windows.iter().for_each(|current_window| {
         if current_window.placement.rcNormalPosition == active_window.placement.rcNormalPosition {

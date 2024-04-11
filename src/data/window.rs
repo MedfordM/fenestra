@@ -2,7 +2,7 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::WINDOWPLACEMENT;
 
 #[derive(Debug, Clone)]
-pub struct Application {
+pub struct Window {
     pub title: String,
     pub hwnd: HWND,
     pub thread_id: u32,
