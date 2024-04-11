@@ -11,12 +11,13 @@ pub mod keyboard_hook {
     use crate::data::action::Execute;
     use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
     use crate::state::KEYBINDS;
+    use crate::win_api::misc::call_next_hook;
 
     lazy_static! {
         static ref KEY_COMBO: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
     }
 
-    pub unsafe extern "system" fn callback(_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+    pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
         let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
         let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
 
@@ -31,16 +32,6 @@ pub mod keyboard_hook {
             }
             KeyAction::UP => {
                 /*
-                   Sanity check:
-                   - Have we pressed any keys down?
-                   - Were any of those keys the released key?
-                */
-                if KEY_COMBO.lock().unwrap().len() == 0
-                    || !KEY_COMBO.lock().unwrap().contains(&key_press.key)
-                {
-                    return LRESULT::default();
-                }
-                /*
                    Attempt to find a keybind that transitively matches the pressed_combo:
                    It's important that this checks for partial equality so that the keys can
                    be pressed in any order and still match the defined keybind -
@@ -54,24 +45,22 @@ pub mod keyboard_hook {
                         .iter()
                         .all(|key| KEY_COMBO.lock().unwrap().contains(key))
                 });
-                if bind_index.is_none() {
-                    // No matching keybind, mark the key as released and carry on
-                    KEY_COMBO.lock().unwrap().remove(&key_press.key);
-                    return LRESULT::default();
+                if bind_index.is_some() {
+                    // User pressed a defined keybind, mark the key as released and execute the action
+                    let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
+                    bind.action.execute();
                 }
-                // User pressed a defined keybind, mark the key as released and execute the action
-                let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
+                // Mark the key as released and carry on
                 KEY_COMBO.lock().unwrap().remove(&key_press.key);
-                bind.action.execute();
-                return LRESULT(10);
             }
         }
 
         // Suppress every instance of the WIN key
-        if key_code == KEY_WINDOWS || KEY_COMBO.lock().unwrap().contains(&key_press.key) {
+        // TODO: Instead, check for any key in $modifier
+        if key_code == KEY_WINDOWS {
             LRESULT(10)
         } else {
-            LRESULT::default()
+            return call_next_hook(code, w_param, l_param);
         }
     }
 }

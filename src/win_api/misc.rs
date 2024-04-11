@@ -1,8 +1,8 @@
 use std::process::exit;
 
 use windows::core::Error;
-use windows::Win32::Foundation::{GetLastError, WIN32_ERROR};
-use windows::Win32::UI::WindowsAndMessaging::{HHOOK, UnhookWindowsHookEx};
+use windows::Win32::Foundation::{GetLastError, LPARAM, LRESULT, WIN32_ERROR, WPARAM};
+use windows::Win32::UI::WindowsAndMessaging::{CallNextHookEx, HHOOK, UnhookWindowsHookEx};
 
 pub fn handle_result<T>(result: Result<T, Error>) -> T {
     if result.is_err() {
@@ -21,4 +21,8 @@ pub fn unset_hook(hook: &HHOOK) {
     if result.is_err() {
         println!("Failed to unset hooks");
     }
+}
+
+pub fn call_next_hook(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+    return unsafe { CallNextHookEx(None, code, w_param, l_param) };
 }
