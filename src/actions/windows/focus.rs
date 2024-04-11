@@ -1,8 +1,8 @@
 use std::str::FromStr;
+
 use crate::data::action::Execute;
 use crate::data::window::Window;
-use crate::win_api;
-use crate::win_api::window::set_foreground_window;
+use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
 pub struct Focus {
@@ -11,8 +11,9 @@ pub struct Focus {
 
 impl Execute for Focus {
     fn execute(&self) {
-        let target: Window = win_api::window::find_nearest_window_in_direction(&self.direction);
-        set_foreground_window(target);
+        let current = get_foreground_window();
+        let target: Window = current.find_nearest_in_direction(&self.direction);
+        target.focus();
     }
 }
 

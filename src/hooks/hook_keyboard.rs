@@ -1,21 +1,14 @@
 pub mod keyboard_hook {
-    use std::collections::HashSet;
-    use std::sync::Mutex;
-
-    use lazy_static::lazy_static;
     use windows::Win32::{
         Foundation::{LPARAM, LRESULT, WPARAM},
         UI::WindowsAndMessaging::KBDLLHOOKSTRUCT,
     };
 
     use crate::data::action::Execute;
-    use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
+    use crate::data::key::{Key, KeyAction, KeyPress, Keybind, KEY_WINDOWS};
     use crate::state::KEYBINDS;
+    use crate::state::PRESSED_KEYS;
     use crate::win_api::misc::call_next_hook;
-
-    lazy_static! {
-        static ref KEY_COMBO: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
-    }
 
     pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
         let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
@@ -28,7 +21,7 @@ pub mod keyboard_hook {
         match key_action {
             KeyAction::DOWN => {
                 // User pressed a key, add it to KEY_COMBO
-                KEY_COMBO.lock().unwrap().insert(key_press.key.clone());
+                PRESSED_KEYS.lock().unwrap().insert(key_press.key.clone());
             }
             KeyAction::UP => {
                 /*
@@ -43,7 +36,7 @@ pub mod keyboard_hook {
                     key_bind
                         .keys
                         .iter()
-                        .all(|key| KEY_COMBO.lock().unwrap().contains(key))
+                        .all(|key| PRESSED_KEYS.lock().unwrap().contains(key))
                 });
                 if bind_index.is_some() {
                     // User pressed a defined keybind, mark the key as released and execute the action
@@ -51,7 +44,7 @@ pub mod keyboard_hook {
                     bind.action.execute();
                 }
                 // Mark the key as released and carry on
-                KEY_COMBO.lock().unwrap().remove(&key_press.key);
+                PRESSED_KEYS.lock().unwrap().remove(&key_press.key);
             }
         }
 

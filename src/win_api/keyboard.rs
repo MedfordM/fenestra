@@ -1,18 +1,18 @@
 use std::ffi::CString;
 
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetKeyNameTextA, MapVirtualKeyA, MAPVK_VK_TO_VSC, VkKeyScanA,
+    GetKeyNameTextA, MapVirtualKeyA, VkKeyScanA, MAPVK_VK_TO_VSC,
 };
-use windows::Win32::UI::WindowsAndMessaging::{HHOOK, SetWindowsHookExA, WH_KEYBOARD_LL};
+use windows::Win32::UI::WindowsAndMessaging::{SetWindowsHookExA, HHOOK, WH_KEYBOARD_LL};
 
 use crate::data::key::{KEY_ALT, KEY_CONTROL, KEY_SHIFT, KEY_SPACE, KEY_WINDOWS};
 use crate::hooks::hook_keyboard::keyboard_hook::callback;
+use crate::win_api::misc::get_main_module;
 use crate::win_api::misc::handle_result;
-use crate::win_api::window::get_handle;
 
 pub fn set_keyboard_hook() -> HHOOK {
     return handle_result(unsafe {
-        SetWindowsHookExA(WH_KEYBOARD_LL, Some(callback), get_handle(), 0)
+        SetWindowsHookExA(WH_KEYBOARD_LL, Some(callback), get_main_module(), 0)
     });
 }
 

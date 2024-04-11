@@ -11,7 +11,7 @@ use crate::win_api;
 const APP_NAME: &str = "WindowManager\0";
 
 pub fn window() -> HWND {
-    let app_instance: HMODULE = win_api::window::get_handle();
+    let app_instance: HMODULE = win_api::misc::get_main_module();
     win_api::window::register_class(app_instance, APP_NAME);
 
     return win_api::window::create_window(

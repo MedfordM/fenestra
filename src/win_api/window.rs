@@ -5,9 +5,7 @@ use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
-use windows::Win32::System::LibraryLoader::GetModuleHandleA;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreateWindowExA, DefWindowProcA, DispatchMessageA, GetForegroundWindow,
     GetMessageA, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId,
@@ -19,15 +17,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::data::window::Window;
 use crate::hooks;
-use crate::win_api::misc::handle_result;
-
-pub fn get_handle() -> HMODULE {
-    return handle_result(unsafe { GetModuleHandleA(None) });
-}
-
-pub fn load_cursor() -> HCURSOR {
-    return handle_result(unsafe { LoadCursorW(None, IDC_ARROW) });
-}
+use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 
 pub fn register_class(instance: HMODULE, class_name: &str) {
     extern "system" fn window_callback(
@@ -110,10 +100,6 @@ pub fn handle_window_events(window_handle: &HWND, hooks: &Vec<HHOOK>) {
     }
 }
 
-fn get_message(message: *mut MSG, window_handle: &HWND) -> BOOL {
-    return unsafe { GetMessageA(message, window_handle.to_owned(), 0, 0) };
-}
-
 pub fn get_foreground_window() -> Window {
     unsafe {
         let result = GetForegroundWindow();
@@ -121,41 +107,22 @@ pub fn get_foreground_window() -> Window {
             let error: WIN32_ERROR = GetLastError();
             println!("Error getting foreground window: {:?}", error);
         }
-        return get_application(result);
+        return get_window(result);
     }
 }
 
-pub fn set_foreground_window(app: Window) {
+pub fn set_foreground_window(app: &Window) {
     unsafe {
         let current_window = GetWindowThreadProcessId(GetForegroundWindow(), None);
-        attach_input(current_window);
+        attach_thread(current_window);
         BringWindowToTop(app.hwnd).unwrap();
         ShowWindow(app.hwnd, SW_SHOW);
-        detach_input(current_window);
+        detach_thread(current_window);
     }
-}
-
-fn attach_input(target_thread: u32) {
-    let fenestra_thread = get_current_thread_id();
-    unsafe { AttachThreadInput(target_thread, fenestra_thread, true) };
-}
-
-fn detach_input(target_thread: u32) {
-    let fenestra_thread = get_current_thread_id();
-    unsafe { AttachThreadInput(target_thread, fenestra_thread, false) };
-}
-
-fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
-    let info = unsafe { GetWindowLongA(handle, offset) };
-    return info;
-}
-
-fn get_style(handle: HWND) -> i32 {
-    return get_window_info(handle, GWL_STYLE);
 }
 
 static mut APPLICATIONS: Vec<Window> = Vec::new();
-pub fn get_applications() -> Vec<Window> {
+pub fn get_all_windows() -> Vec<Window> {
     unsafe {
         APPLICATIONS.clear();
     };
@@ -171,7 +138,7 @@ pub fn get_applications() -> Vec<Window> {
             return BOOL::from(true);
         }
 
-        let application: Window = get_application(hwnd);
+        let application: Window = get_window(hwnd);
         if application.title.len() == 0 {
             return BOOL::from(true);
         }
@@ -188,7 +155,7 @@ pub fn get_applications() -> Vec<Window> {
     unsafe { return APPLICATIONS.clone() };
 }
 
-pub fn get_application(hwnd: HWND) -> Window {
+pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     let (thread_id, process_id) = get_window_thread_id(hwnd);
@@ -219,46 +186,6 @@ fn get_window_placement(handle: HWND) -> WINDOWPLACEMENT {
     return placement;
 }
 
-pub fn find_nearest_window_in_direction(direction: &String) -> Window {
-    let active_window: Window = get_foreground_window();
-    let mut nearest_window: (Window, i32) = (active_window.clone(), i32::MAX);
-    let all_windows: Vec<Window> = get_applications();
-
-    all_windows.iter().for_each(|candidate_window| {
-        // Skip evaluation if candidate window is in the same place as the active one
-        if candidate_window.placement.rcNormalPosition == active_window.placement.rcNormalPosition {
-            return;
-        }
-        let active: i32; // focused window
-        let candidate: i32; // window currently being evaluated
-        match direction.to_ascii_uppercase().as_str() {
-            "LEFT" => {
-                active = active_window.placement.rcNormalPosition.left;
-                candidate = candidate_window.placement.rcNormalPosition.right;
-            }
-            "RIGHT" => {
-                active = active_window.placement.rcNormalPosition.right;
-                candidate = candidate_window.placement.rcNormalPosition.left;
-            }
-            "UP" => {
-                active = active_window.placement.rcNormalPosition.top;
-                candidate = candidate_window.placement.rcNormalPosition.bottom;
-            }
-            "DOWN" => {
-                active = active_window.placement.rcNormalPosition.bottom;
-                candidate = candidate_window.placement.rcNormalPosition.top;
-            }
-            _ => return,
-        }
-        let delta: i32 = (candidate - active).abs();
-        if delta < nearest_window.1 {
-            nearest_window = (candidate_window.clone(), delta);
-            return;
-        }
-    });
-    return nearest_window.0;
-}
-
 fn get_window_thread_id(handle: HWND) -> (u32, u32) {
     let mut process_id = 0;
     let result = unsafe { GetWindowThreadProcessId(handle, Some(&mut process_id)) };
@@ -268,10 +195,19 @@ fn get_window_thread_id(handle: HWND) -> (u32, u32) {
     return (result, process_id);
 }
 
-fn get_current_thread_id() -> u32 {
-    let result = unsafe { GetCurrentThreadId() };
-    if result == 0 {
-        println!("Unable to get current thread id");
-    }
-    return result;
+fn load_cursor() -> HCURSOR {
+    return handle_result(unsafe { LoadCursorW(None, IDC_ARROW) });
+}
+
+fn get_message(message: *mut MSG, window_handle: &HWND) -> BOOL {
+    return unsafe { GetMessageA(message, window_handle.to_owned(), 0, 0) };
+}
+
+fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
+    let info = unsafe { GetWindowLongA(handle, offset) };
+    return info;
+}
+
+fn get_style(handle: HWND) -> i32 {
+    return get_window_info(handle, GWL_STYLE);
 }
