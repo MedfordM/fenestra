@@ -6,7 +6,7 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
-use windows::Win32::System::StationsAndDesktops::{EnumDesktopWindows, GetThreadDesktop, HDESK};
+use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
@@ -182,13 +182,8 @@ pub fn get_applications() -> Vec<Application> {
         return BOOL::from(true);
     }
 
-    let current_window_thread = get_foreground_window().thread_id;
-    let desktop_thread = handle_result(unsafe { GetThreadDesktop(current_window_thread) });
-    if desktop_thread == HDESK::default() {
-        println!("Unable to get desktop thread");
-    }
     handle_result(unsafe {
-        EnumDesktopWindows(desktop_thread, Some(enum_windows_callback), LPARAM::default())
+        EnumDesktopWindows(None, Some(enum_windows_callback), LPARAM::default())
     });
     unsafe { return APPLICATIONS.clone() };
 }
