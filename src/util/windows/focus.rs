@@ -1,4 +1,4 @@
-use crate::data::actions::Focus;
+use crate::data::action::Focus;
 use crate::data::application::Application;
 use crate::win_api;
 use crate::win_api::window::set_foreground_window;

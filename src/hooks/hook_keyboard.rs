@@ -7,9 +7,8 @@ pub mod keyboard_hook {
         Foundation::{LPARAM, LRESULT, WPARAM},
         UI::WindowsAndMessaging::KBDLLHOOKSTRUCT,
     };
-    use windows::Win32::UI::WindowsAndMessaging::CallNextHookEx;
 
-    use crate::data::actions::Execute;
+    use crate::data::action::Execute;
     use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
     use crate::state::KEYBINDS;
 
@@ -17,10 +16,7 @@ pub mod keyboard_hook {
         static ref KEY_COMBO: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
     }
 
-    pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
-        if code < 0 {
-            return unsafe { CallNextHookEx(None, code, w_param, l_param) };
-        }
+    pub unsafe extern "system" fn callback(_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
         let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
         let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
 
@@ -42,7 +38,7 @@ pub mod keyboard_hook {
                 if KEY_COMBO.lock().unwrap().len() == 0
                     || !KEY_COMBO.lock().unwrap().contains(&key_press.key)
                 {
-                    return unsafe { CallNextHookEx(None, code, w_param, l_param) };
+                    return LRESULT::default();
                 }
                 /*
                    Attempt to find a keybind that transitively matches the pressed_combo:
@@ -61,20 +57,21 @@ pub mod keyboard_hook {
                 if bind_index.is_none() {
                     // No matching keybind, mark the key as released and carry on
                     KEY_COMBO.lock().unwrap().remove(&key_press.key);
-                    return unsafe { CallNextHookEx(None, code, w_param, l_param) };
+                    return LRESULT::default();
                 }
                 // User pressed a defined keybind, mark the key as released and execute the action
                 let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
                 KEY_COMBO.lock().unwrap().remove(&key_press.key);
                 bind.action.execute();
+                return LRESULT(10);
             }
         }
 
         // Suppress every instance of the WIN key
-        if key_code == KEY_WINDOWS {
+        if key_code == KEY_WINDOWS || KEY_COMBO.lock().unwrap().contains(&key_press.key) {
             LRESULT(10)
         } else {
-            unsafe { CallNextHookEx(None, code, w_param, l_param) }
+            LRESULT::default()
         }
     }
 }

@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
 
-use crate::data::actions::WindowManagerAction;
+use crate::data::action::WindowManagerAction;
 use crate::data::key::{Key, Keybind};
 
 pub fn parse_content(config_path: &Path) -> Vec<Keybind> {

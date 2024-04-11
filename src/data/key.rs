@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use windows::System::VirtualKey;
 
-use crate::data::actions::WindowManagerAction;
+use crate::data::action::WindowManagerAction;
 use crate::win_api::keyboard::{get_key_code, get_key_name};
 
 // Key action
