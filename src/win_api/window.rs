@@ -2,18 +2,18 @@ use std::ffi::CString;
 
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
-    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
+    GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
 use windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
-    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowLongA,
-    GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK,
-    IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW, TranslateMessage, WINDOW_EX_STYLE,
-    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA,
+    BringWindowToTop, CreateWindowExA, DefWindowProcA, DispatchMessageA, GetForegroundWindow,
+    GetMessageA, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId,
+    LoadCursorW, PostQuitMessage, RegisterClassA, ShowWindow, TranslateMessage, CS_HREDRAW,
+    CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, MSG, SW_SHOW, WINDOWPLACEMENT,
+    WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA,
     WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
 };
 
@@ -221,99 +221,42 @@ fn get_window_placement(handle: HWND) -> WINDOWPLACEMENT {
 
 pub fn find_nearest_window_in_direction(direction: &String) -> Window {
     let active_window: Window = get_foreground_window();
-    let mut nearest_window: Option<Window> = None;
+    let mut nearest_window: (Window, i32) = (active_window.clone(), i32::MAX);
     let all_windows: Vec<Window> = get_applications();
 
-    all_windows.iter().for_each(|current_window| {
-        if current_window.placement.rcNormalPosition == active_window.placement.rcNormalPosition {
+    all_windows.iter().for_each(|candidate_window| {
+        // Skip evaluation if candidate window is in the same place as the active one
+        if candidate_window.placement.rcNormalPosition == active_window.placement.rcNormalPosition {
             return;
         }
-        let current: i32;
-        let active: i32;
-        let nearest: i32;
+        let active: i32; // focused window
+        let candidate: i32; // window currently being evaluated
         match direction.to_ascii_uppercase().as_str() {
             "LEFT" => {
-                current = current_window.placement.rcNormalPosition.left;
                 active = active_window.placement.rcNormalPosition.left;
-                if current > active {
-                    return;
-                }
-                if nearest_window.is_none() {
-                    nearest_window = Some(current_window.clone());
-                    return;
-                }
-                nearest = nearest_window
-                    .clone()
-                    .unwrap()
-                    .placement
-                    .rcNormalPosition
-                    .left;
-                if current > nearest {
-                    nearest_window = Some(current_window.clone());
-                }
-            }
-            "DOWN" => {
-                current = current_window.placement.rcNormalPosition.bottom;
-                active = active_window.placement.rcNormalPosition.bottom;
-                if current > active {
-                    return;
-                }
-                if nearest_window.is_none() {
-                    nearest_window = Some(current_window.clone());
-                    return;
-                }
-                nearest = nearest_window
-                    .clone()
-                    .unwrap()
-                    .placement
-                    .rcNormalPosition
-                    .bottom;
-                if current > nearest {
-                    nearest_window = Some(current_window.clone());
-                }
-            }
-            "UP" => {
-                current = current_window.placement.rcNormalPosition.top;
-                active = active_window.placement.rcNormalPosition.top;
-                if current < active {
-                    return;
-                }
-                if nearest_window.is_none() {
-                    nearest_window = Some(current_window.clone());
-                }
-                nearest = nearest_window
-                    .clone()
-                    .unwrap()
-                    .placement
-                    .rcNormalPosition
-                    .top;
-                if current < nearest {
-                    nearest_window = Some(current_window.clone());
-                }
+                candidate = candidate_window.placement.rcNormalPosition.right;
             }
             "RIGHT" => {
-                current = current_window.placement.rcNormalPosition.right;
                 active = active_window.placement.rcNormalPosition.right;
-                if current < active {
-                    return;
-                }
-                if nearest_window.is_none() {
-                    nearest_window = Some(current_window.clone());
-                }
-                nearest = nearest_window
-                    .clone()
-                    .unwrap()
-                    .placement
-                    .rcNormalPosition
-                    .right;
-                if current < nearest {
-                    nearest_window = Some(current_window.clone());
-                }
+                candidate = candidate_window.placement.rcNormalPosition.left;
+            }
+            "UP" => {
+                active = active_window.placement.rcNormalPosition.top;
+                candidate = candidate_window.placement.rcNormalPosition.bottom;
+            }
+            "DOWN" => {
+                active = active_window.placement.rcNormalPosition.bottom;
+                candidate = candidate_window.placement.rcNormalPosition.top;
             }
             _ => return,
         }
+        let delta: i32 = (candidate - active).abs();
+        if delta < nearest_window.1 {
+            nearest_window = (candidate_window.clone(), delta);
+            return;
+        }
     });
-    return nearest_window.unwrap_or_else(|| active_window);
+    return nearest_window.0;
 }
 
 fn get_window_thread_id(handle: HWND) -> (u32, u32) {
