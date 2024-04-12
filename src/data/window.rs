@@ -52,9 +52,8 @@ impl Window {
                 _ => return,
             }
             let delta: i32 = (candidate - active).abs();
-            if delta < nearest_window.1 {
+            if delta != 0 && delta < nearest_window.1 {
                 nearest_window = (candidate_window.clone(), delta);
-                return;
             }
         });
         return nearest_window.0;
