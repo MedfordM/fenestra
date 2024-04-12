@@ -12,9 +12,9 @@ pub struct Focus {
 
 impl Execute for Focus {
     fn execute(&self) {
+        println!("Searching for window {}", &self.direction);
         let current = get_foreground_window();
         let target: Window = current.find_nearest_in_direction(&self.direction);
-        println!("Found monitors {:?}", MONITORS.lock().unwrap());
         target.focus();
     }
 }

@@ -13,6 +13,7 @@ pub mod keyboard_hook {
     pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
         let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
         let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
+        println!("Key code: {}", key_code);
 
         let key_action: KeyAction = KeyAction::from(w_param.0);
         let key: Key = Key::from(key_code);
@@ -24,6 +25,8 @@ pub mod keyboard_hook {
                 PRESSED_KEYS.lock().unwrap().insert(key_press.key.clone());
             }
             KeyAction::UP => {
+                // TODO: Somehow random releases are being missed
+                println!("Released {:?}", key_press.key);
                 /*
                    Attempt to find a keybind that transitively matches the pressed_combo:
                    It's important that this checks for partial equality so that the keys can
@@ -41,6 +44,7 @@ pub mod keyboard_hook {
                 if bind_index.is_some() {
                     // User pressed a defined keybind, execute the action
                     let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
+                    println!("Read configured keybind: {:?}", bind.keys);
                     bind.action.execute();
                 }
                 // Mark the key as released and carry on
