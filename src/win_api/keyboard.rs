@@ -1,5 +1,6 @@
 use std::ffi::CString;
 
+use log::error;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetKeyNameTextA, MapVirtualKeyA, VkKeyScanA, MAPVK_VK_TO_VSC,
 };
@@ -22,7 +23,7 @@ pub fn get_key_name(key_code: i32) -> String {
     let result = unsafe { GetKeyNameTextA((scan_code << 16) as i32, &mut buffer) };
 
     if result == 0 {
-        println!("Failed to fetch key name for code {}", key_code);
+        error!("Failed to fetch key name for code {}", key_code);
         return String::new();
     }
     unsafe { buffer.set_len(result as usize) }
@@ -40,7 +41,7 @@ pub fn get_key_code(key: &str) -> i32 {
     };
 
     if result == 0 {
-        println!("Failed to fetch key code for character {}", key);
+        error!("Failed to fetch key code for character {}", key);
     }
 
     return result;

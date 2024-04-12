@@ -1,8 +1,10 @@
-use std::{fs, io};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
+use std::{fs, io};
+
+use log::error;
 
 use crate::data::action::WindowManagerAction;
 use crate::data::key::{Key, Keybind};
@@ -10,7 +12,7 @@ use crate::data::key::{Key, Keybind};
 pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
     let config_content_result: io::Result<String> = fs::read_to_string(config_path);
     if config_content_result.is_err() {
-        println!("Failed to read config file");
+        error!("Failed to read config file");
         exit(1);
     }
 
@@ -66,7 +68,7 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
                 if config_variables.contains_key(&var_name) {
                     let result = config_variables.get(&var_name);
                     if result.is_none() {
-                        println!("Config referenced non-existent variable {}", var_name);
+                        error!("Config referenced non-existent variable {}", var_name);
                         exit(100);
                     }
                     let mut expanded_var_keys: Vec<String> = result
@@ -98,7 +100,7 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
                     .iter()
                     .position(|line| line.starts_with(&config_action.as_str()))
                     .unwrap();
-                println!(
+                error!(
                     "Invalid action name {} in config line {}",
                     config_action, current_line
                 );

@@ -1,5 +1,6 @@
 use std::mem;
 
+use log::error;
 use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITORINFO, MONITORINFOEXA,
@@ -23,19 +24,18 @@ pub fn get_all() -> Vec<Monitor> {
     }
     let result = unsafe { EnumDisplayMonitors(None, None, Some(enum_displays_callback), None) };
     if !result.as_bool() {
-        println!("Unable to enumerate displays");
+        error!("Unable to enumerate displays");
     }
     return unsafe { MONITORS.clone() };
 }
 
 pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
-    println!("test {:?}", hmonitor);
     let mut monitor_info = MONITORINFOEXA::default();
     monitor_info.monitorInfo.cbSize = mem::size_of::<MONITORINFOEXA>() as u32;
     let monitor_info_ptr = &mut monitor_info as *mut MONITORINFOEXA as *mut MONITORINFO;
     let result = unsafe { GetMonitorInfoA(hmonitor, monitor_info_ptr) };
     if !result.as_bool() {
-        println!("Unable to get monitor info");
+        error!("Unable to get monitor info");
     }
     // Seriously, there must be a better way
     let name = unsafe {

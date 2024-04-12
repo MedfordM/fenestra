@@ -1,5 +1,6 @@
 use std::ffi::CString;
 
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
@@ -50,7 +51,7 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
     let result = unsafe { RegisterClassA(&window_class) };
     if result == 0 {
         let error: WIN32_ERROR = unsafe { GetLastError() };
-        println!("Error registering window class: {:?}", error);
+        error!("Error registering window class: {:?}", error);
     }
 }
 
@@ -94,7 +95,6 @@ pub fn handle_window_events(window_handle: &HWND, hooks: &Vec<HHOOK>) {
         }
         if message.message == WM_NULL {
             hooks::unset_hooks(hooks);
-            println!("Exiting");
             break;
         }
     }
@@ -105,9 +105,9 @@ pub fn get_foreground_window() -> Window {
         let result = GetForegroundWindow();
         if result == HWND::default() {
             let error: WIN32_ERROR = GetLastError();
-            println!("Error getting foreground window: {:?}", error);
+            error!("Error getting foreground window: {:?}", error);
         }
-        return get_window(result);
+        return Window::from(result);
     }
 }
 
@@ -141,7 +141,7 @@ pub fn get_all() -> Vec<Window> {
         if window_style & WS_MAXIMIZEBOX.0 == 0 {
             return BOOL::from(true);
         }
-        let application: Window = get_window(hwnd);
+        let application: Window = Window::from(hwnd);
         if application.title.len() == 0 {
             return BOOL::from(true);
         }
@@ -191,7 +191,7 @@ fn get_window_thread_id(handle: HWND) -> (u32, u32) {
     let mut process_id = 0;
     let result = unsafe { GetWindowThreadProcessId(handle, Some(&mut process_id)) };
     if result == 0 {
-        println!("Unable to get window pid");
+        error!("Unable to get window pid");
     }
     return (result, process_id);
 }

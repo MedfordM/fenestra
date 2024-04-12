@@ -26,7 +26,7 @@ impl Debug for Monitor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Monitor {}: {:?}, {:?}",
+            "{}: {:?}, {:?}",
             self.name, self.position, self.workspaces
         )
     }

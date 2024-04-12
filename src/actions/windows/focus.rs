@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use log::debug;
+
 use crate::data::action::Execute;
 use crate::data::window::Window;
 use crate::state::MONITORS;
@@ -12,7 +14,7 @@ pub struct Focus {
 
 impl Execute for Focus {
     fn execute(&self) {
-        println!("Searching for window {}", &self.direction);
+        debug!("Found monitors {:?}", MONITORS.lock().unwrap());
         let current = get_foreground_window();
         let target: Window = current.find_nearest_in_direction(&self.direction);
         target.focus();
