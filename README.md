@@ -1,3 +1,24 @@
+# Feature Roadmap
+
+## Windows
+ - Focus window in direction ✅
+ - Move window in direction ❌
+ - Swap window in direction ❌
+ - Dynamic window sizing ❌
+
+## Workspaces
+ - Multiple workspaces ❌   
+ - Focus workspace ❌  
+ - Send window to workspace ❌
+ - Workspaces per monitor ❌
+
+## UX
+ - Binary downloads ❌
+ - Config GUI ❌
+ - Cloud config storage ❌
+ - Config per machine ❌
+ - Improved registry edits ❌
+
 # Configuration
 
 Fenestra is configured by writing entries into the configuration file `fenestra.conf` located in this directory.
