@@ -1,6 +1,9 @@
-use windows::Win32::Foundation::HWND;
+use log::debug;
+use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::WINDOWPLACEMENT;
 
+use crate::data::common::direction::Direction;
+use crate::data::monitor::Monitor;
 use crate::win_api::window::{get_all, get_window, set_foreground_window};
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -10,7 +13,7 @@ pub struct Window {
     pub thread_id: u32,
     pub process_id: u32,
     pub placement: WINDOWPLACEMENT,
-    // pub monitor: Monitor,
+    pub monitor: Monitor,
 }
 
 impl Window {
@@ -22,41 +25,61 @@ impl Window {
         set_foreground_window(self);
     }
 
-    pub fn find_nearest_in_direction(&self, direction: &String) -> Window {
-        let mut nearest_window: (Window, i32) = (self.clone(), i32::MAX);
-        let all_windows: Vec<Window> = Window::get_all_windows();
-        all_windows.iter().for_each(|candidate_window| {
-            // Skip evaluation if candidate window is in the same place as the active one
-            if candidate_window.placement.rcNormalPosition == self.placement.rcNormalPosition {
-                return;
+    pub fn find_nearest_in_direction(&self, direction: &Direction) -> Window {
+        let candidate_windows: Vec<Window> = Window::get_all_windows()
+            .iter()
+            .filter(|window| window != &self)
+            .map(|window| window.clone())
+            .collect();
+        let monitor_windows: Vec<Window> = candidate_windows
+            .iter()
+            .filter(|window| window.monitor == self.monitor)
+            .map(|window| window.clone())
+            .collect();
+        let monitor_rects: Vec<RECT> = monitor_windows
+            .iter()
+            .map(|window| window.placement.rcNormalPosition)
+            .collect();
+        let mut nearest_result: Option<(RECT, i32)> = direction.find_nearest(
+            self.placement.rcNormalPosition,
+            &monitor_rects,
+            false,
+            true,
+            None,
+        );
+        if nearest_result.is_none() {
+            // TODO: Check only the neighboring monitor in the requested direction
+            let other_windows: Vec<Window> = candidate_windows
+                .iter()
+                .filter(|window| window.monitor != self.monitor)
+                .map(|window| window.clone())
+                .collect();
+            let other_rects: Vec<RECT> = other_windows
+                .iter()
+                .map(|window| window.placement.rcNormalPosition)
+                .collect();
+            nearest_result = direction.find_nearest(
+                self.placement.rcNormalPosition,
+                &other_rects,
+                false,
+                true,
+                None,
+            );
+            if nearest_result.is_none() {
+                debug!("Unable to find nearest window");
             }
-            let active: i32; // focused window
-            let candidate: i32; // window currently being evaluated
-            match direction.to_ascii_uppercase().as_str() {
-                "LEFT" => {
-                    active = self.placement.rcNormalPosition.left;
-                    candidate = candidate_window.placement.rcNormalPosition.right;
-                }
-                "RIGHT" => {
-                    active = self.placement.rcNormalPosition.right;
-                    candidate = candidate_window.placement.rcNormalPosition.left;
-                }
-                "UP" => {
-                    active = self.placement.rcNormalPosition.top;
-                    candidate = candidate_window.placement.rcNormalPosition.bottom;
-                }
-                "DOWN" => {
-                    active = self.placement.rcNormalPosition.bottom;
-                    candidate = candidate_window.placement.rcNormalPosition.top;
-                }
-                _ => return,
-            }
-            let delta: i32 = (candidate - active).abs();
-            if delta != 0 && delta < nearest_window.1 {
-                nearest_window = (candidate_window.clone(), delta);
-            }
-        });
-        return nearest_window.0;
+        }
+        let (nearest_rect, nearest_delta): (RECT, i32) = nearest_result.unwrap();
+        let nearest_window: Window = candidate_windows
+            .iter()
+            .find(|window| window.placement.rcNormalPosition == nearest_rect)
+            .map(|window| window.clone())
+            .unwrap();
+        debug!(
+            "Located {} nearest window: {} with delta {}",
+            &direction, &nearest_window.title, nearest_delta
+        );
+        return nearest_window;
     }
 
     pub fn from(hwnd: HWND) -> Self {

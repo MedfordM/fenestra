@@ -3,13 +3,14 @@ use std::str::FromStr;
 use log::debug;
 
 use crate::data::action::Execute;
+use crate::data::common::direction::Direction;
 use crate::data::window::Window;
 use crate::state::MONITORS;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
 pub struct Focus {
-    pub direction: String,
+    pub direction: Direction,
 }
 
 impl Execute for Focus {
@@ -24,21 +25,18 @@ impl Execute for Focus {
 impl FromStr for Focus {
     type Err = ();
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input.to_ascii_uppercase().as_str() {
-            "FOCUS_LEFT" => Ok(Focus {
-                direction: "left".to_string(),
-            }),
-            "FOCUS_DOWN" => Ok(Focus {
-                direction: "down".to_string(),
-            }),
-            "FOCUS_UP" => Ok(Focus {
-                direction: "up".to_string(),
-            }),
-            "FOCUS_RIGHT" => Ok(Focus {
-                direction: "right".to_string(),
-            }),
-            _ => Err(()),
+        let input_up: String = input.to_ascii_uppercase();
+        if !input_up.contains("FOCUS_") {
+            return Err(());
         }
+        let direction_str: &str = input_up.strip_prefix("FOCUS_").unwrap();
+        let direction = Direction::from_str(direction_str);
+        if direction.is_err() {
+            return Err(());
+        }
+        Ok(Focus {
+            direction: direction.unwrap(),
+        })
     }
 }
 

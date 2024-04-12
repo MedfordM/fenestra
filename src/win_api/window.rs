@@ -1,23 +1,24 @@
 use std::ffi::CString;
 
-use log::error;
+use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
-    GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
+    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreateWindowExA, DefWindowProcA, DispatchMessageA, GetForegroundWindow,
-    GetMessageA, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId,
-    LoadCursorW, PostQuitMessage, RegisterClassA, ShowWindow, TranslateMessage, CS_HREDRAW,
-    CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, MSG, SW_SHOW, WINDOWPLACEMENT,
-    WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA,
+    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
+    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowLongA,
+    GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK,
+    IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW, TranslateMessage, WINDOW_EX_STYLE,
+    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA,
     WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
 use crate::hooks;
+use crate::state::MONITORS;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 
 pub fn register_class(instance: HMODULE, class_name: &str) {
@@ -161,6 +162,17 @@ pub fn get_all() -> Vec<Window> {
 pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let placement: WINDOWPLACEMENT = get_window_placement(hwnd);
+    let monitor = MONITORS
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|monitor| monitor.contains_rect(placement.rcNormalPosition))
+        .unwrap()
+        .clone();
+    debug!(
+        "Getting window {} on {} with placement {:?}",
+        title, monitor.name, &placement.rcNormalPosition
+    );
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     Window {
         title,
@@ -168,6 +180,7 @@ pub fn get_window(hwnd: HWND) -> Window {
         thread_id,
         process_id,
         placement,
+        monitor,
     }
 }
 

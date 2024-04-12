@@ -1,11 +1,12 @@
 pub mod keyboard_hook {
+    use log::debug;
     use windows::Win32::{
         Foundation::{LPARAM, LRESULT, WPARAM},
         UI::WindowsAndMessaging::KBDLLHOOKSTRUCT,
     };
 
     use crate::data::action::Execute;
-    use crate::data::key::{Key, KeyAction, KeyPress, Keybind, KEY_WINDOWS};
+    use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
     use crate::state::KEYBINDS;
     use crate::state::PRESSED_KEYS;
     use crate::win_api::misc::call_next_hook;
@@ -41,6 +42,7 @@ pub mod keyboard_hook {
                 if bind_index.is_some() {
                     // User pressed a defined keybind, execute the action
                     let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
+                    debug!("Executing action for keybind {:?}", bind.keys);
                     bind.action.execute();
                 }
                 // Mark the key as released and carry on
