@@ -5,7 +5,7 @@ pub mod keyboard_hook {
     };
 
     use crate::data::action::Execute;
-    use crate::data::key::{Key, KeyAction, KeyPress, Keybind, KEY_WINDOWS};
+    use crate::data::key::{Key, KeyAction, KeyPress, Keybind, KEY_WINDOWS, MODIFIER_KEYS};
     use crate::state::KEYBINDS;
     use crate::state::PRESSED_KEYS;
     use crate::win_api::misc::call_next_hook;
@@ -39,7 +39,7 @@ pub mod keyboard_hook {
                         .all(|key| PRESSED_KEYS.lock().unwrap().contains(key))
                 });
                 if bind_index.is_some() {
-                    // User pressed a defined keybind, mark the key as released and execute the action
+                    // User pressed a defined keybind, execute the action
                     let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
                     bind.action.execute();
                 }
@@ -50,7 +50,7 @@ pub mod keyboard_hook {
 
         // Suppress every instance of the WIN key
         // TODO: Instead, check for any key in $modifier
-        if key_code == KEY_WINDOWS {
+        if MODIFIER_KEYS.contains(&key_press.key.code) {
             LRESULT(10)
         } else {
             return call_next_hook(code, w_param, l_param);
