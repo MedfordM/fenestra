@@ -1,10 +1,8 @@
 use std::mem;
 
 use log::{debug, error};
-use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
-use windows::Win32::Graphics::Gdi::{
-    EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITORINFO, MONITORINFOEXA,
-};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
+use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow, MONITORINFO, MONITORINFOEXA};
 
 use crate::data::common::direction::{ALL_DIRECTIONS, Direction};
 use crate::data::monitor::Monitor;
@@ -64,10 +62,12 @@ pub fn get_all() -> Vec<Monitor> {
                     };
                     let nearest_result: Option<(RECT, i32)> = direction.find_nearest(
                         monitor.position,
+                        String::from(&monitor.name),
                         &other_rects,
                         true,
                         false,
                         Some(max_delta),
+                        None
                     );
                     if nearest_result.is_none() {
                         continue;
@@ -105,9 +105,18 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             .to_string()
     };
     Monitor {
+        hmonitor,
         name,
         position: monitor_info.monitorInfo.rcWork,
         workspaces: Vec::new(),
         neighbors: Vec::new(),
     }
+}
+
+pub fn get_monitor_from_window(hwnd: HWND) -> HMONITOR {
+    let result = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
+    if result == HMONITOR::default() {
+        error!("Unable to get monitor from window");
+    }
+    return result;
 }

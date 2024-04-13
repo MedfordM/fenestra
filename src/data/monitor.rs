@@ -9,6 +9,7 @@ use crate::win_api::monitor::{get_all, get_monitor};
 
 #[derive(Clone, PartialEq, Default)]
 pub struct Monitor {
+    pub hmonitor: HMONITOR,
     pub name: String,
     pub position: RECT,
     pub workspaces: Vec<Workspace>,

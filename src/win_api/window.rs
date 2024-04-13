@@ -1,25 +1,19 @@
 use std::ffi::CString;
+use std::process::exit;
 
 use log::{debug, error};
 use windows::core::PCSTR;
-use windows::Win32::Foundation::{
-    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
-};
+use windows::Win32::Foundation::{BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, RECT, WIN32_ERROR, WPARAM};
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
-    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowLongA,
-    GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK,
-    IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW, TranslateMessage, WINDOW_EX_STYLE,
-    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA,
-    WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
-};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW, TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
+use crate::data::monitor::Monitor;
 
 use crate::data::window::Window;
 use crate::hooks;
 use crate::state::MONITORS;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
+use crate::win_api::monitor::get_monitor_from_window;
 
 pub fn register_class(instance: HMODULE, class_name: &str) {
     extern "system" fn window_callback(
@@ -159,19 +153,28 @@ pub fn get_all() -> Vec<Window> {
     }
 }
 
+fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
+    let mut window_info: WINDOWINFO = WINDOWINFO::default();
+    handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
+    return window_info;
+}
+
 pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
-    let placement: WINDOWPLACEMENT = get_window_placement(hwnd);
-    let monitor = MONITORS
+    let window_info: WINDOWINFO = get_window_coords(hwnd);
+    let monitor_result = MONITORS
         .lock()
         .unwrap()
         .iter()
-        .find(|monitor| monitor.contains_rect(placement.rcNormalPosition))
-        .unwrap()
-        .clone();
+        .find(|monitor| monitor.hmonitor == get_monitor_from_window(hwnd)).map(|monitor| monitor.clone());
+    if monitor_result.is_none() {
+        error!("Unable to find monitor for window {}, {:?}", &title, &window_info.rcWindow);
+        exit(100);
+    }
+    let monitor = monitor_result.unwrap().clone();
     debug!(
         "Getting window {} on {} with placement {:?}",
-        title, monitor.name, &placement.rcNormalPosition
+        title, monitor.name, &window_info.rcWindow
     );
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     Window {
@@ -179,7 +182,7 @@ pub fn get_window(hwnd: HWND) -> Window {
         hwnd,
         thread_id,
         process_id,
-        placement,
+        info: window_info,
         monitor,
     }
 }
