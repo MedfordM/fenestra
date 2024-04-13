@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use log::debug;
-use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::{POINT, RECT};
 
 use crate::data::common::direction::Direction::{DOWN, LEFT, RIGHT, UP};
 
@@ -17,107 +17,95 @@ pub enum Direction {
 impl Direction {
     pub fn find_nearest(
         &self,
-        origin: RECT,
+        origin_rect: RECT,
         origin_name: String,
-        candidates: &Vec<RECT>,
+        candidates: &Vec<(String, RECT)>,
         discard_overlapping: bool,
         require_non_zero_delta: bool,
         largest_delta: Option<i32>,
-        offset_opt: Option<i32>
+        offset_opt: Option<i32>,
     ) -> Option<(RECT, i32)> {
-        // TODO: This is super broken, refactor to instead compare two POINTs (left,top) on a coordinate plane
+        /*
+           Virtual Screen Coordinates:
+           Lower  X values are in the left direction
+           Higher X values are in the right direction
+           Lower  Y values are in the up direction
+           Higher Y values are in the down direction
+        */
         let offset = offset_opt.unwrap_or_default();
-        let mut nearest: Option<(RECT, i32)> = None;
-        debug!("Attempting to find nearest candidate {:?} from {}", self, origin_name);
+        let origin_point: POINT = POINT {
+            x: origin_rect.left,
+            y: origin_rect.top,
+        };
+        let mut nearest: Option<(RECT, POINT, i32)> = None;
+        debug!(
+            "Attempting to find nearest candidate {:?} from {}",
+            self, origin_name
+        );
         candidates.iter().for_each(|candidate| {
-            // Skip evaluation if candidate rect is in the same place as the origin
-            if candidate == &origin {
-                return;
-            }
-            let mut origin_coord: i32 = 0 + offset; // origin rect
-            let mut candidate_coord: i32 = 0 - offset; // rect being evaluated
-            debug!("Evaluating candidate {:?} with offset {}", candidate, offset);
+            let candidate_point: POINT = POINT {
+                x: candidate.1.left,
+                y: candidate.1.top,
+            };
+            debug!(
+                "Evaluating {} {:?} with offset {}",
+                candidate.0, candidate_point, offset
+            );
             match &self {
                 LEFT => {
-                    if origin.left <= candidate.left {
+                    // Skip if nearest point is left of candidate
+                    if nearest.is_some() && nearest.unwrap().1.x < candidate_point.x {
                         return;
                     }
-                    if discard_overlapping && origin.right == candidate.right {
-                        debug!("Discarding candidate: overlaps with origin");
+                    // Skip if the origin is left of candidate
+                    if origin_point.x < candidate_point.x {
                         return;
                     }
-                    origin_coord += origin.left;
-                    candidate_coord += candidate.right;
                 }
                 RIGHT => {
-                    if origin.right >= candidate.right {
+                    // Skip if nearest point is right of candidate
+                    if nearest.is_some() && nearest.unwrap().1.x > candidate_point.x {
                         return;
                     }
-                    if discard_overlapping && origin.left == candidate.left {
-                        debug!("Discarding candidate: overlaps with origin");
+                    // Skip if the origin is right of candidate
+                    if origin_point.x > candidate_point.x {
                         return;
                     }
-                    origin_coord += origin.right;
-                    candidate_coord += candidate.left;
                 }
                 UP => {
-                    if origin.top <= candidate.top {
+                    // Skip if nearest point is above candidate
+                    if nearest.is_some() && nearest.unwrap().1.y < candidate_point.y {
                         return;
                     }
-                    if discard_overlapping && origin.left == candidate.left {
-                        debug!("Discarding candidate: overlaps with origin");
+                    // Skip if the origin is above candidate
+                    if origin_point.y < candidate_point.y {
                         return;
                     }
-                    origin_coord += origin.top;
-                    candidate_coord += candidate.bottom;
                 }
                 DOWN => {
-                    if origin.bottom >= candidate.bottom {
+                    // Skip if nearest point is below candidate
+                    if nearest.is_some() && nearest.unwrap().1.y > candidate_point.y {
                         return;
                     }
-                    if discard_overlapping && origin.left == candidate.left {
-                        debug!("Discarding candidate: overlaps with origin");
+                    // Skip if the origin is below candidate
+                    if origin_point.y > candidate_point.y {
                         return;
                     }
-                    // Prioritize locality
-                    // let delta_left: i32 = (candidate.left - origin.left).abs();
-                    // let delta_right: i32 = (candidate.right - origin.right).abs();
-                    // if delta_left == 0 && delta_right == 0 {
-                    //     debug!("Prioritizing local candidate");
-                    //     origin_coord = 1;
-                    //     candidate_coord = 2;
-                    // } else if offset.is_some() && delta_left <= offset.unwrap() && delta_right <= offset.unwrap() {
-                    //     debug!("Prioritizing local candidate");
-                    //     origin_coord = 1;
-                    //     candidate_coord = 2;
-                    // } else {
-                        origin_coord += origin.bottom;
-                        candidate_coord += candidate.top;
-                    // }
                 }
             }
-            let delta: i32 = candidate_coord - origin_coord;
-            debug!("Calculated candidate delta as {}", delta);
-            if require_non_zero_delta && delta == 0 {
-                debug!("Discarding candidate: delta=0");
-                return;
-            }
-            if largest_delta.is_some() && largest_delta.unwrap() < delta {
-                debug!(
-                    "Discarding candidate: delta({})>max_delta({})",
-                    delta,
-                    largest_delta.unwrap()
-                );
-                return;
-            }
-            if nearest.is_none() || delta < nearest.unwrap().1 {
-                nearest = Some((candidate.clone(), delta));
+            let delta_x: i32 = origin_point.x - candidate_point.x;
+            let delta_y: i32 = origin_point.y - candidate_point.y;
+            let delta: i32 = (delta_x * delta_x) + (delta_y * delta_y);
+            debug!("Calculated {} delta as {}", candidate.0, delta);
+            if nearest.is_none() || nearest.unwrap().2 > delta {
+                nearest = Some((candidate.1, candidate_point, delta));
             }
         });
         if nearest.is_none() {
             return None;
         }
-        return Some(nearest.unwrap());
+        let nearest_result = nearest.unwrap();
+        return Some((nearest_result.0, nearest_result.2));
     }
 }
 

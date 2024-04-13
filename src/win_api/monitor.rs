@@ -54,7 +54,10 @@ pub fn get_all() -> Vec<Monitor> {
                     .filter(|m| !m.eq(&mon))
                     .map(|m| m.clone())
                     .collect();
-                let other_rects: Vec<RECT> = other_monitors.iter().map(|m| m.position).collect();
+                let other_rects: Vec<(String, RECT)> = other_monitors
+                    .iter()
+                    .map(|m| (String::from(&m.name), m.position))
+                    .collect();
                 for direction in &ALL_DIRECTIONS {
                     let max_delta: i32 = match direction {
                         Direction::LEFT | Direction::RIGHT => min_width,
@@ -67,7 +70,7 @@ pub fn get_all() -> Vec<Monitor> {
                         true,
                         false,
                         Some(max_delta),
-                        None
+                        None,
                     );
                     if nearest_result.is_none() {
                         continue;

@@ -36,9 +36,9 @@ impl Window {
             .filter(|window| window.monitor == self.monitor)
             .map(|window| window.clone())
             .collect();
-        let monitor_rects: Vec<RECT> = monitor_windows
+        let monitor_rects: Vec<(String, RECT)> = monitor_windows
             .iter()
-            .map(|window| window.info.rcWindow)
+            .map(|window| (String::from(&window.title), window.info.rcWindow))
             .collect();
         let mut nearest_result: Option<(RECT, i32)> = direction.find_nearest(
             self.info.rcWindow,
@@ -47,7 +47,7 @@ impl Window {
             false,
             true,
             None,
-            Some(self.info.cxWindowBorders as i32)
+            Some(self.info.cxWindowBorders as i32),
         );
         if nearest_result.is_none() {
             // TODO: Check only the neighboring monitor in the requested direction
@@ -56,9 +56,9 @@ impl Window {
                 .filter(|window| window.monitor != self.monitor)
                 .map(|window| window.clone())
                 .collect();
-            let other_rects: Vec<RECT> = other_windows
+            let other_rects: Vec<(String, RECT)> = other_windows
                 .iter()
-                .map(|window| window.info.rcWindow)
+                .map(|window| (String::from(&window.title), window.info.rcWindow))
                 .collect();
             nearest_result = direction.find_nearest(
                 self.info.rcWindow,
@@ -67,7 +67,7 @@ impl Window {
                 false,
                 true,
                 None,
-                Some(self.info.cxWindowBorders as i32)
+                Some(self.info.cxWindowBorders as i32),
             );
             if nearest_result.is_none() {
                 debug!("Unable to find window {} from {}", &direction, self.title);

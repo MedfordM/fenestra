@@ -3,12 +3,21 @@ use std::process::exit;
 
 use log::{debug, error};
 use windows::core::PCSTR;
-use windows::Win32::Foundation::{BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, RECT, WIN32_ERROR, WPARAM};
+use windows::Win32::Foundation::{
+    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, RECT, WIN32_ERROR, WPARAM,
+};
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW, TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
-use crate::data::monitor::Monitor;
+use windows::Win32::UI::WindowsAndMessaging::{
+    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
+    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo,
+    GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
+    HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW,
+    TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT,
+    WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
+};
 
+use crate::data::monitor::Monitor;
 use crate::data::window::Window;
 use crate::hooks;
 use crate::state::MONITORS;
@@ -166,16 +175,20 @@ pub fn get_window(hwnd: HWND) -> Window {
         .lock()
         .unwrap()
         .iter()
-        .find(|monitor| monitor.hmonitor == get_monitor_from_window(hwnd)).map(|monitor| monitor.clone());
+        .find(|monitor| monitor.hmonitor == get_monitor_from_window(hwnd))
+        .map(|monitor| monitor.clone());
     if monitor_result.is_none() {
-        error!("Unable to find monitor for window {}, {:?}", &title, &window_info.rcWindow);
+        error!(
+            "Unable to find monitor for window {}, {:?}",
+            &title, &window_info.rcWindow
+        );
         exit(100);
     }
     let monitor = monitor_result.unwrap().clone();
-    debug!(
-        "Getting window {} on {} with placement {:?}",
-        title, monitor.name, &window_info.rcWindow
-    );
+    // debug!(
+    //     "Getting window {} on {} with placement {:?}",
+    //     title, monitor.name, &window_info.rcWindow
+    // );
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     Window {
         title,
