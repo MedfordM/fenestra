@@ -4,7 +4,7 @@ use log::{debug, error};
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow, MONITORINFO, MONITORINFOEXA};
 
-use crate::data::common::direction::{ALL_DIRECTIONS, Direction};
+use crate::data::common::direction::ALL_DIRECTIONS;
 use crate::data::monitor::Monitor;
 
 static mut MONITORS: Vec<Monitor> = Vec::new();
@@ -27,24 +27,24 @@ pub fn get_all() -> Vec<Monitor> {
     }
 
     unsafe {
-        let min_width: i32 = MONITORS
-            .iter()
-            .map(|monitor| {
-                let origin: i32 = monitor.position.left.abs();
-                let end: i32 = monitor.position.right.abs();
-                return (end - origin).abs();
-            })
-            .min()
-            .unwrap();
-        let min_height: i32 = MONITORS
-            .iter()
-            .map(|monitor| {
-                let origin: i32 = monitor.position.top.abs();
-                let end: i32 = monitor.position.bottom.abs();
-                return (end - origin).abs();
-            })
-            .min()
-            .unwrap();
+        // let min_width: i32 = MONITORS
+        //     .iter()
+        //     .map(|monitor| {
+        //         let origin: i32 = monitor.position.left.abs();
+        //         let end: i32 = monitor.position.right.abs();
+        //         return (end - origin).abs();
+        //     })
+        //     .min()
+        //     .unwrap();
+        // let min_height: i32 = MONITORS
+        //     .iter()
+        //     .map(|monitor| {
+        //         let origin: i32 = monitor.position.top.abs();
+        //         let end: i32 = monitor.position.bottom.abs();
+        //         return (end - origin).abs();
+        //     })
+        //     .min()
+        //     .unwrap();
         MONITORS = MONITORS
             .iter()
             .map(|mon| {
@@ -54,31 +54,31 @@ pub fn get_all() -> Vec<Monitor> {
                     .filter(|m| !m.eq(&mon))
                     .map(|m| m.clone())
                     .collect();
-                let other_rects: Vec<(String, RECT)> = other_monitors
+                let other_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = other_monitors
                     .iter()
-                    .map(|m| (String::from(&m.name), m.position))
+                    .map(|m| (String::from(&m.name), m.position, None, None))
                     .collect();
                 for direction in &ALL_DIRECTIONS {
-                    let max_delta: i32 = match direction {
-                        Direction::LEFT | Direction::RIGHT => min_width,
-                        Direction::UP | Direction::DOWN => min_height,
-                    };
-                    let nearest_result: Option<(RECT, i32)> = direction.find_nearest(
-                        monitor.position,
-                        String::from(&monitor.name),
+                    // let max_delta: i32 = match direction {
+                    //     Direction::LEFT | Direction::RIGHT => min_width,
+                    //     Direction::UP | Direction::DOWN => min_height,
+                    // };
+                    let nearest_result: Option<(String, i32)> = direction.find_nearest(
+                        (
+                            String::from(&monitor.name),
+                            monitor.position,
+                            None,
+                            None
+                        ),
                         &other_rects,
-                        true,
-                        false,
-                        Some(max_delta),
-                        None,
                     );
                     if nearest_result.is_none() {
                         continue;
                     }
-                    let (nearest_rect, _): (RECT, _) = nearest_result.unwrap();
+                    let (nearest_name, _): (String, _) = nearest_result.unwrap();
                     let nearest_mon = other_monitors
                         .iter()
-                        .find(|m| m.position == nearest_rect)
+                        .find(|m| m.name.contains(&nearest_name))
                         .map(|m| m.clone());
                     if nearest_mon.is_some() {
                         let name = nearest_mon.unwrap().name.replace("\0", "");

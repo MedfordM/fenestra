@@ -23,14 +23,6 @@ impl Monitor {
     pub fn from(value: HMONITOR) -> Self {
         get_monitor(value)
     }
-
-    pub fn contains_rect(&self, window_pos: RECT) -> bool {
-        let monitor_pos = &self.position;
-        return monitor_pos.left < window_pos.left
-            && monitor_pos.top < window_pos.top
-            && monitor_pos.right > window_pos.right
-            && monitor_pos.bottom > window_pos.bottom;
-    }
 }
 
 impl Debug for Monitor {

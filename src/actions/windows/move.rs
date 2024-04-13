@@ -10,7 +10,7 @@ pub struct Move {
 
 impl Execute for Move {
     fn execute(&self) {
-        let current = get_foreground_window();
+        let _current = get_foreground_window();
     }
 }
 

@@ -1,23 +1,23 @@
 use std::ffi::CString;
 use std::process::exit;
 
-use log::{debug, error};
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
-    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, RECT, WIN32_ERROR, WPARAM,
+    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
     DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo,
-    GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
+    GetWindowLongA, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
     HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW,
-    TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT,
+    TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, 
     WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
 };
 
-use crate::data::monitor::Monitor;
+
 use crate::data::window::Window;
 use crate::hooks;
 use crate::state::MONITORS;
@@ -185,10 +185,6 @@ pub fn get_window(hwnd: HWND) -> Window {
         exit(100);
     }
     let monitor = monitor_result.unwrap().clone();
-    // debug!(
-    //     "Getting window {} on {} with placement {:?}",
-    //     title, monitor.name, &window_info.rcWindow
-    // );
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     Window {
         title,
@@ -208,12 +204,6 @@ fn get_window_title(handle: HWND) -> String {
     }
     unsafe { buffer.set_len(result as usize) }
     return CString::new(buffer).unwrap().to_string_lossy().to_string();
-}
-
-fn get_window_placement(handle: HWND) -> WINDOWPLACEMENT {
-    let mut placement = WINDOWPLACEMENT::default();
-    handle_result(unsafe { GetWindowPlacement(handle, &mut placement) });
-    return placement;
 }
 
 fn get_window_thread_id(handle: HWND) -> (u32, u32) {

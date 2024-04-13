@@ -1,3 +1,4 @@
+use std::f32;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
@@ -17,14 +18,9 @@ pub enum Direction {
 impl Direction {
     pub fn find_nearest(
         &self,
-        origin_rect: RECT,
-        origin_name: String,
-        candidates: &Vec<(String, RECT)>,
-        discard_overlapping: bool,
-        require_non_zero_delta: bool,
-        largest_delta: Option<i32>,
-        offset_opt: Option<i32>,
-    ) -> Option<(RECT, i32)> {
+        origin: (String, RECT, Option<u32>, Option<u32>),
+        candidates: &Vec<(String, RECT, Option<u32>, Option<u32>)>
+    ) -> Option<(String, i32)> {
         /*
            Virtual Screen Coordinates:
            Lower  X values are in the left direction
@@ -32,73 +28,82 @@ impl Direction {
            Lower  Y values are in the up direction
            Higher Y values are in the down direction
         */
-        let offset = offset_opt.unwrap_or_default();
+        let origin_offset_x = origin.2.unwrap_or_default();
+        let origin_offset_y = origin.3.unwrap_or_default();
         let origin_point: POINT = POINT {
-            x: origin_rect.left,
-            y: origin_rect.top,
+            x: origin.1.left,
+            y: origin.1.top,
         };
-        let mut nearest: Option<(RECT, POINT, i32)> = None;
+        let mut nearest: Option<(String, POINT, i32)> = None;
         debug!(
-            "Attempting to find nearest candidate {:?} from {}",
-            self, origin_name
+            "Attempting to find nearest({}) candidate from '{}' using offsets {{x: {}, y: {}}}",
+            self, origin.0, origin_offset_x, origin_offset_y
         );
         candidates.iter().for_each(|candidate| {
+            let candidate_offset_x = candidate.2.unwrap_or_default() as i32;
+            let candidate_offset_y = candidate.3.unwrap_or_default() as i32;
             let candidate_point: POINT = POINT {
                 x: candidate.1.left,
                 y: candidate.1.top,
             };
             debug!(
-                "Evaluating {} {:?} with offset {}",
-                candidate.0, candidate_point, offset
+                "Evaluating {} {:?} with offsets {{x: {}, y: {}}}",
+                candidate.0, candidate_point, candidate_offset_x, candidate_offset_y
             );
+            let delta_x: i32 = candidate_point.x - origin_point.x;
+            let delta_y: i32 = candidate_point.y - origin_point.y;
             match &self {
                 LEFT => {
-                    // Skip if nearest point is left of candidate
-                    if nearest.is_some() && nearest.unwrap().1.x < candidate_point.x {
-                        return;
-                    }
                     // Skip if the origin is left of candidate
                     if origin_point.x < candidate_point.x {
+                        debug!("Discarding invalid candidate");
+                        return;
+                    }
+                    if delta_x.abs() <= candidate_offset_x {
+                        debug!("Discarding ambiguous candidate");
                         return;
                     }
                 }
                 RIGHT => {
-                    // Skip if nearest point is right of candidate
-                    if nearest.is_some() && nearest.unwrap().1.x > candidate_point.x {
-                        return;
-                    }
                     // Skip if the origin is right of candidate
                     if origin_point.x > candidate_point.x {
+                        debug!("Discarding invalid candidate");
+                        return;
+                    }
+                    if delta_x.abs() <= candidate_offset_x {
+                        debug!("Discarding ambiguous candidate");
                         return;
                     }
                 }
                 UP => {
-                    // Skip if nearest point is above candidate
-                    if nearest.is_some() && nearest.unwrap().1.y < candidate_point.y {
-                        return;
-                    }
                     // Skip if the origin is above candidate
                     if origin_point.y < candidate_point.y {
+                        debug!("Discarding invalid candidate");
+                        return;
+                    }
+                    if delta_y.abs() <= candidate_offset_y {
+                        debug!("Discarding ambiguous candidate");
                         return;
                     }
                 }
                 DOWN => {
-                    // Skip if nearest point is below candidate
-                    if nearest.is_some() && nearest.unwrap().1.y > candidate_point.y {
-                        return;
-                    }
                     // Skip if the origin is below candidate
                     if origin_point.y > candidate_point.y {
+                        debug!("Discarding invalid candidate");
+                        return;
+                    }
+                    if delta_y.abs() <= candidate_offset_y {
+                        debug!("Discarding ambiguous candidate");
                         return;
                     }
                 }
             }
-            let delta_x: i32 = origin_point.x - candidate_point.x;
-            let delta_y: i32 = origin_point.y - candidate_point.y;
-            let delta: i32 = (delta_x * delta_x) + (delta_y * delta_y);
-            debug!("Calculated {} delta as {}", candidate.0, delta);
-            if nearest.is_none() || nearest.unwrap().2 > delta {
-                nearest = Some((candidate.1, candidate_point, delta));
+            let distance: f32 = ((delta_x.pow(2) + delta_y.pow(2)) as f32).sqrt();
+            debug!("Calculated '{}' distance as {}", candidate.0, &distance);
+            let current_nearest = nearest.clone();
+            if current_nearest.is_none() || current_nearest.unwrap().2 > distance as i32  {
+                nearest = Some((String::from(&candidate.0), candidate_point, distance as i32));
+                debug!("Current nearest is now {} at {}", candidate.0, distance);
             }
         });
         if nearest.is_none() {
