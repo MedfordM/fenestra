@@ -9,11 +9,11 @@ use crate::state::MONITORS;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
-pub struct Focus {
+pub struct FocusWindow {
     pub direction: Direction,
 }
 
-impl Execute for Focus {
+impl Execute for FocusWindow {
     fn execute(&self) {
         debug!("Found monitors {:?}", MONITORS.lock().unwrap());
         let current = get_foreground_window();
@@ -22,7 +22,7 @@ impl Execute for Focus {
     }
 }
 
-impl FromStr for Focus {
+impl FromStr for FocusWindow {
     type Err = ();
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let input_up: String = input.to_ascii_uppercase();
@@ -34,13 +34,13 @@ impl FromStr for Focus {
         if direction.is_err() {
             return Err(());
         }
-        Ok(Focus {
+        Ok(FocusWindow {
             direction: direction.unwrap(),
         })
     }
 }
 
-impl std::fmt::Debug for Focus {
+impl std::fmt::Debug for FocusWindow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Focus {}", self.direction)
     }
