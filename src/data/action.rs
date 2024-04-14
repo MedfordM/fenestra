@@ -6,14 +6,14 @@ use crate::actions::windows::r#move::MoveWindow;
 #[derive(Clone, PartialEq)]
 pub enum WindowManagerAction {
     FocusWindow(FocusWindow),
-    MoveWindow(MoveWindow)
+    MoveWindow(MoveWindow),
 }
 
 impl Execute for WindowManagerAction {
     fn execute(&self) {
         return match self {
-            WindowManagerAction::FocusWindow(focus) => focus.execute(),
-            WindowManagerAction::MoveWindow(focus) => focus.execute(),
+            WindowManagerAction::FocusWindow(action) => action.execute(),
+            WindowManagerAction::MoveWindow(action) => action.execute(),
         };
     }
 }
@@ -26,7 +26,7 @@ impl FromStr for WindowManagerAction {
             if result.is_ok() {
                 return Ok(WindowManagerAction::FocusWindow(result.unwrap()));
             }
-        } else if input.to_ascii_uppercase().contains("FOCUS") {
+        } else if input.to_ascii_uppercase().contains("MOVE") {
             let result = MoveWindow::from_str(input);
             if result.is_ok() {
                 return Ok(WindowManagerAction::MoveWindow(result.unwrap()));
@@ -39,7 +39,8 @@ impl FromStr for WindowManagerAction {
 impl std::fmt::Debug for WindowManagerAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return match self {
-            WindowManagerAction::FocusWindow(focus) => focus.fmt(f),
+            WindowManagerAction::FocusWindow(action) => action.fmt(f),
+            WindowManagerAction::MoveWindow(action) => action.fmt(f),
         };
     }
 }
