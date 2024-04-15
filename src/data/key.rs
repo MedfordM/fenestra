@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::str::FromStr;
 
 use windows::System::VirtualKey;
@@ -108,12 +109,12 @@ impl std::fmt::Debug for KeyPress {
 
 #[derive(Clone, PartialEq)]
 pub struct Keybind {
-    pub keys: Vec<Key>,
+    pub keys: HashSet<Key>,
     pub action: WindowManagerAction,
 }
 
 impl Keybind {
-    pub fn new(keys: Vec<Key>, action: WindowManagerAction) -> Self {
+    pub fn new(keys: HashSet<Key>, action: WindowManagerAction) -> Self {
         Keybind { keys, action }
     }
 }

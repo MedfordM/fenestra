@@ -15,7 +15,7 @@ pub struct MoveWindow {
 impl Execute for MoveWindow {
     fn execute(&self) {
         let current_window: Window = get_foreground_window();
-        debug!("Moving window {} {}", current_window.title, self.direction);
+        debug!("Moving window {} {}", current_window.title, &self.direction);
     }
 }
 

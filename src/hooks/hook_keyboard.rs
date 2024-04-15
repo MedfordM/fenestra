@@ -25,19 +25,24 @@ pub mod keyboard_hook {
                 PRESSED_KEYS.lock().unwrap().insert(key_press.key.clone());
             }
             KeyAction::UP => {
-                /*
-                   Attempt to find a keybind that transitively matches the pressed_combo:
-                   It's important that this checks for partial equality so that the keys can
-                   be pressed in any order and still match the defined keybind -
-
-                   For example, if a user has an action defined as 'CTRL + ALT + H',
-                   'ALT + CTRL + H' would count as a match as well, and execute the action
-                */
+                let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
                 let bind_index = &KEYBINDS.iter().position(|key_bind| {
-                    key_bind
-                        .keys
-                        .iter()
-                        .all(|key| PRESSED_KEYS.lock().unwrap().contains(key))
+                    // Attempt to find a keybind that matches the pressed_combo
+                    if pressed_keys.eq(&key_bind.keys) {
+                        return true;
+                    }
+                    /*
+                       Attempt to find a keybind that transitively matches the pressed_combo:
+                       It's important that this checks for partial equality so that the keys can
+                       be pressed in any order and still match the defined keybind -
+    
+                       For example, if a user has an action defined as 'CTRL + ALT + H',
+                       'ALT + CTRL + H' would count as a match as well, and execute the action
+                    */
+                    if key_bind.keys.iter().all(|k| pressed_keys.contains(k)) {
+                        return true;
+                    };
+                    return false;
                 });
                 if bind_index.is_some() {
                     // User pressed a defined keybind, execute the action
@@ -46,13 +51,12 @@ pub mod keyboard_hook {
                     bind.action.execute();
                 }
                 // Mark the key as released and carry on
-                PRESSED_KEYS.lock().unwrap().remove(&key_press.key);
+                pressed_keys.remove(&key_press.key);
             }
         }
-
         // Suppress every instance of the WIN key
         // TODO: Instead, check for any key in $modifier
-        if KEY_WINDOWS == key_press.key.code {
+        if KEY_WINDOWS == key_press.key.code || PRESSED_KEYS.lock().unwrap().contains(&Key::from(KEY_WINDOWS)) {
             LRESULT(10)
         } else {
             return call_next_hook(code, w_param, l_param);

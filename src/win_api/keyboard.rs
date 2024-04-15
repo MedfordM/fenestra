@@ -31,7 +31,7 @@ pub fn get_key_name(key_code: i32) -> String {
 }
 
 pub fn get_key_code(key: &str) -> i32 {
-    let result = match key {
+    let result = match key.to_uppercase().as_str() {
         "SPACE" => KEY_SPACE,
         "WIN" => KEY_WINDOWS,
         "CTRL" => KEY_CONTROL,
