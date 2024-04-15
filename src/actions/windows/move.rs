@@ -14,8 +14,14 @@ pub struct MoveWindow {
 
 impl Execute for MoveWindow {
     fn execute(&self) {
-        let current_window: Window = get_foreground_window();
-        debug!("Moving window {} {}", current_window.title, &self.direction);
+        let mut current: Window = get_foreground_window();
+        let target: Window = current.find_nearest_in_direction(&self.direction);
+        if target != current {
+            debug!("Swapping window {} with {}", current.title, target.title);
+            current.swap_windows(target);
+        } else {
+            debug!("Moving window {} {}", current.title, &self.direction);
+        }
     }
 }
 

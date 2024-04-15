@@ -8,14 +8,7 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
-    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo,
-    GetWindowLongA, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
-    HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, ShowWindow, SW_SHOW,
-    TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, 
-    WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
-};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, SetWindowPlacement, SetWindowPos, ShowWindow, SW_SHOW, SWP_FRAMECHANGED, TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
 
 
 use crate::data::window::Window;
@@ -162,12 +155,6 @@ pub fn get_all() -> Vec<Window> {
     }
 }
 
-fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
-    let mut window_info: WINDOWINFO = WINDOWINFO::default();
-    handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
-    return window_info;
-}
-
 pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let window_info: WINDOWINFO = get_window_coords(hwnd);
@@ -194,6 +181,24 @@ pub fn get_window(hwnd: HWND) -> Window {
         info: window_info,
         monitor,
     }
+}
+
+pub fn set_window_pos(window: &Window) {
+    handle_result(unsafe { SetWindowPos(
+        window.hwnd,
+        None,
+        window.info.rcWindow.left - window.info.cxWindowBorders as i32,
+        window.info.rcWindow.top - window.info.cyWindowBorders as i32,
+        window.info.rcWindow.right,
+        window.info.rcWindow.bottom,
+        SWP_FRAMECHANGED
+    )});
+}
+
+fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
+    let mut window_info: WINDOWINFO = WINDOWINFO::default();
+    handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
+    return window_info;
 }
 
 fn get_window_title(handle: HWND) -> String {

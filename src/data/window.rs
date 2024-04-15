@@ -4,7 +4,7 @@ use windows::Win32::UI::WindowsAndMessaging::WINDOWINFO;
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
-use crate::win_api::window::{get_all, get_window, set_foreground_window};
+use crate::win_api::window::{get_all, get_window, set_foreground_window, set_window_pos};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Window {
@@ -120,8 +120,26 @@ impl Window {
         );
         return nearest_window;
     }
+    
+    pub fn swap_windows(&mut self, mut window: Window) {
+        let current_position: RECT = RECT {
+            left: self.info.rcWindow.left,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
+        let new_position: RECT = window.info.rcWindow;
+        
+        window.set_position(current_position);
+        self.set_position(new_position);
+    }
 
     pub fn from(hwnd: HWND) -> Self {
         return get_window(hwnd);
+    }
+    
+    fn set_position(&mut self, position: RECT) {
+        self.info.rcWindow = position;
+        set_window_pos(self);
     }
 }
