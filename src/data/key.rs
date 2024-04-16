@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::str::FromStr;
 
 use windows::System::VirtualKey;
@@ -7,7 +6,7 @@ use crate::data::action::WindowManagerAction;
 use crate::win_api::keyboard::{get_key_code, get_key_name};
 
 // Key action
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum KeyAction {
     UP,
     DOWN,
@@ -37,7 +36,7 @@ impl std::fmt::Debug for KeyAction {
 }
 
 // Key
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct Key {
     pub code: i32,
     pub name: String,
@@ -109,12 +108,12 @@ impl std::fmt::Debug for KeyPress {
 
 #[derive(Clone, PartialEq)]
 pub struct Keybind {
-    pub keys: HashSet<Key>,
+    pub keys: Vec<Key>,
     pub action: WindowManagerAction,
 }
 
 impl Keybind {
-    pub fn new(keys: HashSet<Key>, action: WindowManagerAction) -> Self {
+    pub fn new(keys: Vec<Key>, action: WindowManagerAction) -> Self {
         Keybind { keys, action }
     }
 }

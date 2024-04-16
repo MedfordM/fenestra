@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Mutex;
 
 use lazy_static::lazy_static;
@@ -13,6 +12,6 @@ lazy_static! {
     pub static ref HANDLE: HWND = init::window();
     pub static ref HOOKS: Vec<HHOOK> = init::hooks();
     pub static ref KEYBINDS: Vec<Keybind> = init::keybinds();
-    pub static ref PRESSED_KEYS: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
+    pub static ref PRESSED_KEYS: Mutex<Vec<Key>> = Mutex::new(Vec::new());
     pub static ref MONITORS: Mutex<Vec<Monitor>> = Mutex::new(init::monitors());
 }

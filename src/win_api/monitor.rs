@@ -2,7 +2,10 @@ use std::mem;
 
 use log::{debug, error};
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
-use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow, MONITORINFO, MONITORINFOEXA};
+use windows::Win32::Graphics::Gdi::{
+    EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow,
+    MONITORINFO, MONITORINFOEXA,
+};
 
 use crate::data::common::direction::ALL_DIRECTIONS;
 use crate::data::monitor::Monitor;
@@ -64,12 +67,7 @@ pub fn get_all() -> Vec<Monitor> {
                     //     Direction::UP | Direction::DOWN => min_height,
                     // };
                     let nearest_result: Option<(String, i32)> = direction.find_nearest(
-                        (
-                            String::from(&monitor.name),
-                            monitor.position,
-                            None,
-                            None
-                        ),
+                        (String::from(&monitor.name), monitor.position, None, None),
                         &other_rects,
                     );
                     if nearest_result.is_none() {
@@ -82,7 +80,6 @@ pub fn get_all() -> Vec<Monitor> {
                         .map(|m| m.clone());
                     if nearest_mon.is_some() {
                         let name = nearest_mon.unwrap().name.replace("\0", "");
-                        debug!("Returning final match {}", name);
                         monitor.neighbors.push((direction.clone(), name));
                     }
                 }

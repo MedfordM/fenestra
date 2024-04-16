@@ -1,10 +1,10 @@
+use std::{fs, io};
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
-use std::{fs, io};
 
-use log::error;
+use log::{debug, error};
 
 use crate::data::action::WindowManagerAction;
 use crate::data::key::{Key, Keybind};
@@ -114,6 +114,7 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
                 .collect();
             key_combos.push(Keybind::new(keys, action));
         });
+    debug!("Parsed config: {:?}", key_combos);
     return key_combos;
 }
 

@@ -22,41 +22,57 @@ pub mod keyboard_hook {
         match key_action {
             KeyAction::DOWN => {
                 // User pressed a key, add it to KEY_COMBO
-                PRESSED_KEYS.lock().unwrap().insert(key_press.key.clone());
+                let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
+                if !&pressed_keys.contains(&key_press.key) {
+                    pressed_keys.push(key_press.key.clone());
+                }
             }
             KeyAction::UP => {
                 let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
+                &pressed_keys.sort();
+                debug!("Evaluating key combo: {:?}", &pressed_keys);
                 let bind_index = &KEYBINDS.iter().position(|key_bind| {
                     // Attempt to find a keybind that matches the pressed_combo
-                    if pressed_keys.eq(&key_bind.keys) {
+                    let mut bind_keys: Vec<Key> = key_bind.keys.clone();
+                    bind_keys.sort();
+                    if bind_keys == *pressed_keys {
                         return true;
                     }
-                    /*
-                       Attempt to find a keybind that transitively matches the pressed_combo:
-                       It's important that this checks for partial equality so that the keys can
-                       be pressed in any order and still match the defined keybind -
-    
-                       For example, if a user has an action defined as 'CTRL + ALT + H',
-                       'ALT + CTRL + H' would count as a match as well, and execute the action
-                    */
-                    if key_bind.keys.iter().all(|k| pressed_keys.contains(k)) {
-                        return true;
-                    };
                     return false;
                 });
+                // if bind_index.is_none() {
+                //     /*
+                //        Attempt to find a keybind that transitively matches the pressed_combo:
+                //        It's important that this checks for partial equality so that the keys can
+                //        be pressed in any order and still match the defined keybind -
+                //
+                //        For example, if a user has an action defined as 'CTRL + ALT + H',
+                //        'ALT + CTRL + H' would count as a match as well, and execute the action
+                //     */
+                //     bind_index = &KEYBINDS.iter().position(|key_bind| {
+                //         if key_bind.keys.iter().all(|k| pressed_keys.contains(k)) {
+                //             return true;
+                //         };
+                //         return false;
+                //     })
+                // }
                 if bind_index.is_some() {
                     // User pressed a defined keybind, execute the action
-                    let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
+                    let bind: &Keybind = &KEYBINDS.get(bind_index.unwrap()).unwrap();
                     debug!("Executing action for keybind {:?}", bind.keys);
                     bind.action.execute();
                 }
                 // Mark the key as released and carry on
-                pressed_keys.remove(&key_press.key);
+                let key_index = &pressed_keys
+                    .iter()
+                    .position(|k| k == &key_press.key)
+                    .unwrap();
+                pressed_keys.remove(*key_index);
             }
         }
         // Suppress every instance of the WIN key
         // TODO: Instead, check for any key in $modifier
-        if KEY_WINDOWS == key_press.key.code || PRESSED_KEYS.lock().unwrap().contains(&Key::from(KEY_WINDOWS)) {
+        if KEY_WINDOWS == key_press.key.code {
             LRESULT(10)
         } else {
             return call_next_hook(code, w_param, l_param);
