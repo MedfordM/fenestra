@@ -1,11 +1,8 @@
 use std::str::FromStr;
 
-use log::debug;
-
 use crate::data::action::Execute;
 use crate::data::common::direction::Direction;
 use crate::data::window::Window;
-use crate::state::MONITORS;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
@@ -15,7 +12,6 @@ pub struct FocusWindow {
 
 impl Execute for FocusWindow {
     fn execute(&self) {
-        debug!("Found monitors {:?}", MONITORS.lock().unwrap());
         let current = get_foreground_window();
         let target: Window = current.find_nearest_in_direction(&self.direction);
         target.focus();

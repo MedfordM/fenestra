@@ -114,7 +114,7 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
                 .collect();
             key_combos.push(Keybind::new(keys, action));
         });
-    debug!("Parsed config: {:?}", key_combos);
+    // debug!("Parsed config: {:?}", key_combos);
     return key_combos;
 }
 

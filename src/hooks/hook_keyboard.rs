@@ -18,19 +18,18 @@ pub mod keyboard_hook {
         let key_action: KeyAction = KeyAction::from(w_param.0);
         let key: Key = Key::from(key_code);
         let key_press: KeyPress = KeyPress::new(key_action, key);
+        let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
 
         match key_action {
             KeyAction::DOWN => {
                 // User pressed a key, add it to KEY_COMBO
-                let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
                 if !&pressed_keys.contains(&key_press.key) {
                     pressed_keys.push(key_press.key.clone());
                 }
             }
             KeyAction::UP => {
-                let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
-                &pressed_keys.sort();
-                debug!("Evaluating key combo: {:?}", &pressed_keys);
+                pressed_keys.sort();
+                // debug!("Evaluating key combo: {:?}", &pressed_keys);
                 let bind_index = &KEYBINDS.iter().position(|key_bind| {
                     // Attempt to find a keybind that matches the pressed_combo
                     let mut bind_keys: Vec<Key> = key_bind.keys.clone();

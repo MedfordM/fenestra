@@ -8,8 +8,15 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, SetWindowPlacement, SetWindowPos, ShowWindow, SW_SHOW, SWP_FRAMECHANGED, TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
-
+use windows::Win32::UI::WindowsAndMessaging::{
+    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
+    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo,
+    GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
+    HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA,
+    SetWindowPlacement, SetWindowPos, ShowWindow, SW_SHOW, SWP_FRAMECHANGED, TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX,
+    WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA,
+    WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
+};
 
 use crate::data::window::Window;
 use crate::hooks;
@@ -85,7 +92,7 @@ pub fn handle_window_events(window_handle: &HWND, hooks: &Vec<HHOOK>) {
     let mut message: MSG = MSG::default();
     while get_message(&mut message, window_handle).into() {
         unsafe {
-            TranslateMessage(&message);
+            let _ = TranslateMessage(&message);
         }
         unsafe {
             DispatchMessageA(&message);
@@ -113,7 +120,7 @@ pub fn set_foreground_window(app: &Window) {
         let current_window = GetWindowThreadProcessId(GetForegroundWindow(), None);
         attach_thread(current_window);
         BringWindowToTop(app.hwnd).unwrap();
-        ShowWindow(app.hwnd, SW_SHOW);
+        let _ = ShowWindow(app.hwnd, SW_SHOW);
         detach_thread(current_window);
     }
 }
@@ -173,26 +180,42 @@ pub fn get_window(hwnd: HWND) -> Window {
     }
     let monitor = monitor_result.unwrap().clone();
     let (thread_id, process_id) = get_window_thread_id(hwnd);
+    let window_placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     Window {
         title,
         hwnd,
         thread_id,
         process_id,
         info: window_info,
+        placement: window_placement,
         monitor,
     }
 }
 
 pub fn set_window_pos(window: &Window) {
-    handle_result(unsafe { SetWindowPos(
-        window.hwnd,
-        None,
-        window.info.rcWindow.left - window.info.cxWindowBorders as i32,
-        window.info.rcWindow.top - window.info.cyWindowBorders as i32,
-        window.info.rcWindow.right,
-        window.info.rcWindow.bottom,
-        SWP_FRAMECHANGED
-    )});
+    handle_result(unsafe {
+        SetWindowPos(
+            window.hwnd,
+            None,
+            window.info.rcWindow.left - window.info.cxWindowBorders as i32,
+            window.info.rcWindow.top - window.info.cyWindowBorders as i32,
+            window.info.rcWindow.right,
+            window.info.rcWindow.bottom,
+            SWP_FRAMECHANGED,
+        )
+    });
+}
+
+pub fn set_window_placement(window: &Window, new_placement: &WINDOWPLACEMENT) {
+    handle_result(unsafe {
+        SetWindowPlacement(window.hwnd, new_placement as *const WINDOWPLACEMENT)
+    });
+}
+
+pub fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
+    let mut window_placement: WINDOWPLACEMENT = WINDOWPLACEMENT::default();
+    let _ = handle_result(unsafe { GetWindowPlacement(hwnd, &mut window_placement) });
+    return window_placement;
 }
 
 fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
