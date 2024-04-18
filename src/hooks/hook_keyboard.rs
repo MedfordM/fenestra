@@ -6,7 +6,7 @@ pub mod keyboard_hook {
     };
 
     use crate::data::action::Execute;
-    use crate::data::key::{Key, KEY_WINDOWS, KeyAction, Keybind, KeyPress};
+    use crate::data::key::{Key, KeyAction, Keybind, KeyPress, WINDOWS_KEY_CODE};
     use crate::state::KEYBINDS;
     use crate::state::PRESSED_KEYS;
     use crate::win_api::misc::call_next_hook;
@@ -71,7 +71,8 @@ pub mod keyboard_hook {
         }
         // Suppress every instance of the WIN key
         // TODO: Instead, check for any key in $modifier
-        if KEY_WINDOWS == key_press.key.code {
+        let win_key: Key = Key::from(WINDOWS_KEY_CODE);
+        if key_press.key == win_key || pressed_keys.contains(&win_key) {
             LRESULT(10)
         } else {
             return call_next_hook(code, w_param, l_param);

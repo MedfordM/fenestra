@@ -4,9 +4,7 @@ use windows::Win32::UI::WindowsAndMessaging::{WINDOWINFO, WINDOWPLACEMENT};
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
-use crate::win_api::window::{
-    get_all, get_window, set_foreground_window, set_window_placement, set_window_pos,
-};
+use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_placement, set_window_pos};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Window {
@@ -26,6 +24,14 @@ impl Window {
 
     pub fn focus(&self) {
         set_foreground_window(self);
+    }
+    
+    pub fn minimize(&self) {
+        minimize_window(&self);
+    }
+    
+    pub fn restore(&self) {
+        restore_window(&self);
     }
 
     pub fn find_nearest_in_direction(&self, direction: &Direction) -> Window {
@@ -161,12 +167,12 @@ impl Window {
         let target_placement: WINDOWPLACEMENT = window.placement;
         debug!(
             "Setting {} position from {:?} to {:?}",
-            window.title, window.placement.rcNormalPosition, current_placement.rcNormalPosition
+            window.title, window.placement, current_placement
         );
         window.set_placement(&current_placement);
         debug!(
             "Setting {} position from {:?} to {:?}",
-            self.title, self.placement.rcNormalPosition, target_placement.rcNormalPosition
+            self.title, self.placement, target_placement
         );
         self.set_placement(&target_placement);
     }

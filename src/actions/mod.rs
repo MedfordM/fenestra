@@ -1,2 +1,2 @@
 pub mod windows;
-mod workspaces;
+pub mod workspaces;

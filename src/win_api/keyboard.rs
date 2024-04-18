@@ -6,7 +6,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{SetWindowsHookExA, HHOOK, WH_KEYBOARD_LL};
 
-use crate::data::key::{KEY_ALT, KEY_CONTROL, KEY_SHIFT, KEY_SPACE, KEY_WINDOWS};
+use crate::data::key::{KEY_ALT, KEY_CONTROL, KEY_SHIFT, KEY_SPACE, WINDOWS_KEY_CODE};
 use crate::hooks::hook_keyboard::keyboard_hook::callback;
 use crate::win_api::misc::get_main_module;
 use crate::win_api::misc::handle_result;
@@ -33,7 +33,7 @@ pub fn get_key_name(key_code: i32) -> String {
 pub fn get_key_code(key: &str) -> i32 {
     let result = match key.to_uppercase().as_str() {
         "SPACE" => KEY_SPACE,
-        "WIN" => KEY_WINDOWS,
+        "WIN" => WINDOWS_KEY_CODE,
         "CTRL" => KEY_CONTROL,
         "ALT" => KEY_ALT,
         "SHIFT" => KEY_SHIFT,

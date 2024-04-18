@@ -29,10 +29,10 @@ impl FromStr for MoveWindow {
     type Err = ();
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let input_up: String = input.to_ascii_uppercase();
-        if !input_up.contains("MOVE_") {
+        if !input_up.contains("MOVE_WINDOW_") {
             return Err(());
         }
-        let direction_str: &str = input_up.strip_prefix("MOVE_").unwrap();
+        let direction_str: &str = input_up.strip_prefix("MOVE_WINDOW_").unwrap();
         let direction = Direction::from_str(direction_str);
         if direction.is_err() {
             return Err(());
@@ -45,6 +45,6 @@ impl FromStr for MoveWindow {
 
 impl std::fmt::Debug for MoveWindow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Move {}", self.direction)
+        write!(f, "Move window {}", self.direction)
     }
 }
