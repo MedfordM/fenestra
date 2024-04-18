@@ -46,8 +46,8 @@ pub fn monitors() -> Vec<Monitor> {
     return monitors;
 }
 
-pub fn workspaces() -> Vec<Workspace> {
+pub fn workspaces() -> Vec<Box<Workspace>> {
     let workspace_1: Workspace = Workspace::default();
-    let workpaces: Vec<Workspace> = vec![workspace_1];
-    return workpaces;
+    let workspaces: Vec<Box<Workspace>> = vec![Box::new(workspace_1)];
+    return workspaces;
 }

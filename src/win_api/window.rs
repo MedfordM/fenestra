@@ -8,12 +8,19 @@ use windows::Win32::Foundation::{
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA, SetWindowPlacement, SetWindowPos, ShowWindow, SW_FORCEMINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, TranslateMessage, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY, WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
+use windows::Win32::UI::WindowsAndMessaging::{
+    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
+    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo,
+    GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
+    HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA,
+    SetWindowPlacement, SetWindowPos, ShowWindow, SW_FORCEMINIMIZE, SW_SHOW, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, TranslateMessage,
+    WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY,
+    WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
+};
 
 use crate::data::window::Window;
-
 use crate::hooks;
-use crate::state::{MONITORS};
+use crate::state::MONITORS;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 use crate::win_api::monitor::get_monitor_from_window;
 
@@ -183,7 +190,6 @@ pub fn get_window(hwnd: HWND) -> Window {
         info: window_info,
         placement: window_placement,
         monitor,
-        workspace_id: 1
     }
 }
 
@@ -224,9 +230,7 @@ pub fn set_window_placement(window: &Window, new_placement: &WINDOWPLACEMENT) {
         ptMaxPosition: new_placement.ptMaxPosition,
         rcNormalPosition: new_placement.rcNormalPosition,
     };
-    handle_result(unsafe {
-        SetWindowPlacement(window.hwnd, &placement as *const WINDOWPLACEMENT)
-    });
+    handle_result(unsafe { SetWindowPlacement(window.hwnd, &placement as *const WINDOWPLACEMENT) });
 }
 
 pub fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
