@@ -4,8 +4,8 @@ use std::str::FromStr;
 use log::{debug, error};
 
 use crate::data::action::Execute;
-use crate::data::window::Window;
 use crate::data::workspace::Workspace;
+use crate::state::WORKSPACES;
 
 #[derive(Clone, PartialEq)]
 pub struct FocusWorkspace {
@@ -15,21 +15,9 @@ pub struct FocusWorkspace {
 impl Execute for FocusWorkspace {
     fn execute(&self) {
         debug!("Focusing workspace {}", self.id);
-        let workspace: Box<Workspace> = Workspace::find_workspace_by_id(self.id);
-        let windows = Box::clone(&workspace).windows;
-        // let window_titles: Vec<String> = windows.iter().map(|w| w.title.to_owned()).collect();
-        // debug!("Windows on workspace {}: {:?}", self.id, &window_titles);
-        let other_windows: Vec<Window> = Window::get_all_windows()
-            .iter()
-            .filter(|window| !windows.contains(window))
-            .map(|window| window.clone())
-            .collect();
-        other_windows.iter().for_each(|window| {
-            window.minimize();
-        });
-        windows.iter().for_each(|window| {
-            window.restore();
-        });
+        let mut workspaces = WORKSPACES.lock().unwrap();
+        let workspace: Box<Workspace> = Workspace::find_by_id(self.id, &mut workspaces);
+        workspace.focus();
     }
 }
 

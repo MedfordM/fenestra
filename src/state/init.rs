@@ -6,6 +6,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use crate::config;
 use crate::data::key::Keybind;
 use crate::data::monitor::Monitor;
+use crate::data::window::Window;
 use crate::data::workspace::Workspace;
 use crate::hooks;
 use crate::win_api;
@@ -47,7 +48,18 @@ pub fn monitors() -> Vec<Monitor> {
 }
 
 pub fn workspaces() -> Vec<Box<Workspace>> {
-    let workspace_1: Workspace = Workspace::default();
-    let workspaces: Vec<Box<Workspace>> = vec![Box::new(workspace_1)];
+    let mut workspaces: Vec<Box<Workspace>> = vec![];
+    let default_workspace: Workspace = Workspace {
+        id: 1,
+        windows: Window::get_all_windows()
+    };
+    workspaces.push(Box::new(default_workspace));
+    for i in 2..10 {
+        let workspace: Workspace = Workspace {
+            id: i,
+            windows: vec![],
+        };
+        workspaces.push(Box::new(workspace));
+    }
     return workspaces;
 }

@@ -6,6 +6,7 @@ use log::error;
 use crate::data::action::Execute;
 use crate::data::window::Window;
 use crate::data::workspace::Workspace;
+use crate::state::WORKSPACES;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
@@ -15,13 +16,16 @@ pub struct MoveToWorkspace {
 
 impl Execute for MoveToWorkspace {
     fn execute(&self) {
-        let mut current_window: Window = get_foreground_window();
-        let _ = &current_window.minimize();
-        let mut workspace: Box<Workspace> = Workspace::find_workspace_by_id(self.id);
-        let mut old_workspace: Box<Workspace> =
-            Workspace::find_workspace_by_window(&current_window);
+        let current_window: Window = get_foreground_window();
+        let mut workspaces = WORKSPACES.lock().unwrap();
+        let mut binding = Workspace::find_by_id(self.id, &mut workspaces);
+        let workspace: &mut Workspace = binding.as_mut();
+        let mut old_binding = Workspace::find_by_window(&current_window, &mut workspaces);
+        let old_workspace: &mut Workspace = old_binding.as_mut();
         old_workspace.remove_window(&current_window);
-        workspace.add_window(&mut current_window);
+        workspace.add_window(&current_window);
+        workspaces.insert((self.id - 1) as usize, binding);
+        workspaces.insert((old_workspace.id - 1) as usize, old_binding);
     }
 }
 
