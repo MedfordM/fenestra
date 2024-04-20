@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::exit;
 use std::str::FromStr;
 
-use log::{debug, error};
+use log::error;
 
 use crate::data::action::WindowManagerAction;
 use crate::data::key::{Key, Keybind};

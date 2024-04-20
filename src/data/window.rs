@@ -4,7 +4,7 @@ use windows::Win32::UI::WindowsAndMessaging::{WINDOWINFO, WINDOWPLACEMENT};
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
-use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_placement, set_window_pos};
+use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_placement};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Window {
@@ -181,10 +181,10 @@ impl Window {
         return get_window(hwnd);
     }
 
-    fn set_position(&mut self, position: RECT) {
-        self.info.rcWindow = position;
-        set_window_pos(self);
-    }
+    // fn set_position(&mut self, position: RECT) {
+    //     self.info.rcWindow = position;
+    //     set_window_pos(self);
+    // }
 
     fn set_placement(&mut self, placement: &WINDOWPLACEMENT) {
         set_window_placement(self, placement);

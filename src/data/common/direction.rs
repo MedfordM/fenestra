@@ -27,8 +27,6 @@ impl Direction {
            Lower  Y values are in the up direction
            Higher Y values are in the down direction
         */
-        let origin_offset_x = origin.2.unwrap_or_default();
-        let origin_offset_y = origin.3.unwrap_or_default();
         let origin_point: POINT = POINT {
             x: origin.1.left,
             y: origin.1.top,

@@ -1,4 +1,4 @@
-use crate::state::{HANDLE, HOOKS};
+use state::{HOOKS, HANDLE};
 
 mod actions;
 mod config;

@@ -4,25 +4,79 @@ use std::process::exit;
 use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
-    BOOL, GetLastError, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, WIN32_ERROR, WPARAM,
+    GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, WIN32_ERROR, WPARAM
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreateWindowExA, CS_HREDRAW, CS_OWNDC, CS_VREDRAW,
-    DefWindowProcA, DispatchMessageA, GetForegroundWindow, GetMessageA, GetWindowInfo,
-    GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, GWL_STYLE,
-    HCURSOR, HHOOK, IDC_ARROW, LoadCursorW, MSG, PostQuitMessage, RegisterClassA,
-    SetWindowPlacement, SetWindowPos, ShowWindow, SW_FORCEMINIMIZE, SW_SHOW, SW_SHOWNOACTIVATE, SWP_FRAMECHANGED, TranslateMessage,
-    WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WINDOWINFO, WINDOWPLACEMENT, WM_DESTROY,
-    WM_NULL, WM_PAINT, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE,
-};
+use windows::Win32::UI::Shell::{Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPlacement, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SW_FORCEMINIMIZE, SW_SHOW, SW_SHOWNOACTIVATE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
 
 use crate::data::window::Window;
 use crate::hooks;
 use crate::state::MONITORS;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 use crate::win_api::monitor::get_monitor_from_window;
+
+pub fn system_tray(hwnd: &HWND) {
+    // let tooltip_text = "WindowManager".as_bytes();
+    // let mut tooltip: [i8;128] = [0;128];
+    // for (&x, p) in tooltip_text.iter().zip(tooltip.iter_mut()) {
+    //     *p = x as i8;
+    // }
+
+    let data = NOTIFYICONDATAA {
+        cbSize: Default::default(),
+        hWnd: *hwnd,
+        uID: 0,
+        uFlags:  NIF_TIP | NIF_ICON | NIF_MESSAGE,
+        uCallbackMessage: WM_APP + 1,
+        hIcon: unsafe { LoadIconW(HMODULE::default(), IDI_APPLICATION).unwrap() },
+        szTip: [0;128],
+        dwState: Default::default(),
+        dwStateMask: Default::default(),
+        szInfo: [0;256],
+        Anonymous: Default::default(),
+        szInfoTitle: [0;64],
+        dwInfoFlags: Default::default(),
+        guidItem: Default::default(),
+        hBalloonIcon: Default::default(),
+    };
+    let result = unsafe { Shell_NotifyIconA(NIM_ADD, &data) };
+    if !result.as_bool() {
+        error!("Unable to create system tray icon");
+    }
+}
+
+pub fn display_tray_menu(hwnd: HWND) {
+    let mut item_text: String = String::from("Quit\0");
+    unsafe {
+		let context_menu = handle_result(CreatePopupMenu());
+		handle_result(InsertMenuA(
+			context_menu,
+			0,
+			MF_STRING,
+            (WM_USER + 1) as usize,
+			PCSTR::from_raw(item_text.as_mut_ptr()),
+		));
+
+		let mut cursor_position = POINT { x: 0, y: 0 };
+		handle_result(GetCursorPos(&mut cursor_position));
+
+        let _ = SetForegroundWindow(hwnd);
+		let flags = TPM_RIGHTALIGN | TPM_BOTTOMALIGN | TPM_RIGHTBUTTON;
+		let _ = TrackPopupMenu(
+			context_menu,
+			flags,
+			cursor_position.x,
+			cursor_position.y,
+			0,
+			hwnd.clone(),
+			None,
+		);
+		handle_result(PostMessageA(hwnd, 0, WPARAM(0), LPARAM(0)));
+        handle_result(DestroyMenu(context_menu));
+	}
+}
 
 pub fn register_class(instance: HMODULE, class_name: &str) {
     extern "system" fn window_callback(
@@ -31,6 +85,7 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
         w_param: WPARAM,
         l_param: LPARAM,
     ) -> LRESULT {
+        const NOTIFICATION: u32 = (WM_APP + 1) as u32;
         match message {
             WM_PAINT => unsafe {
                 _ = ValidateRect(window, None);
@@ -38,6 +93,18 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
             },
             WM_DESTROY => unsafe {
                 PostQuitMessage(0);
+                LRESULT(0)
+            },
+            NOTIFICATION => {
+                if l_param.0 as u32 == WM_RBUTTONUP {
+                    display_tray_menu(window);
+                }
+                LRESULT(0)
+            },
+            WM_COMMAND => {
+                if w_param.0 == (WM_USER + 1) as usize {
+                    unsafe { PostQuitMessage(0) };
+                }
                 LRESULT(0)
             },
             _ => unsafe { DefWindowProcA(window, message, w_param, l_param) },
@@ -88,7 +155,7 @@ pub fn create_window(
     };
 }
 
-pub fn handle_window_events(window_handle: &HWND, hooks: &Vec<HHOOK>) {
+pub fn handle_window_events(window_handle: &HWND, hook_ids: &Vec<HHOOK>) {
     let mut message: MSG = MSG::default();
     while get_message(&mut message, window_handle).into() {
         unsafe {
@@ -98,8 +165,7 @@ pub fn handle_window_events(window_handle: &HWND, hooks: &Vec<HHOOK>) {
             DispatchMessageA(&message);
         }
         if message.message == WM_NULL {
-            hooks::unset_hooks(hooks);
-            break;
+            hooks::unset_hooks(hook_ids);
         }
     }
 }
@@ -193,19 +259,19 @@ pub fn get_window(hwnd: HWND) -> Window {
     }
 }
 
-pub fn set_window_pos(window: &Window) {
-    handle_result(unsafe {
-        SetWindowPos(
-            window.hwnd,
-            None,
-            window.info.rcWindow.left - window.info.cxWindowBorders as i32,
-            window.info.rcWindow.top - window.info.cyWindowBorders as i32,
-            window.info.rcWindow.right,
-            window.info.rcWindow.bottom,
-            SWP_FRAMECHANGED,
-        )
-    });
-}
+// pub fn set_window_pos(window: &Window) {
+//     handle_result(unsafe {
+//         SetWindowPos(
+//             window.hwnd,
+//             None,
+//             window.info.rcWindow.left - window.info.cxWindowBorders as i32,
+//             window.info.rcWindow.top - window.info.cyWindowBorders as i32,
+//             window.info.rcWindow.right,
+//             window.info.rcWindow.bottom,
+//             SWP_FRAMECHANGED,
+//         )
+//     });
+// }
 
 pub fn minimize_window(window: &Window) {
     let result = unsafe { ShowWindow(window.hwnd, SW_FORCEMINIMIZE) };

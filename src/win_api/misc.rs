@@ -40,12 +40,12 @@ fn get_current_thread_id() -> u32 {
 
 pub fn attach_thread(target_thread: u32) {
     let fenestra_thread = get_current_thread_id();
-    unsafe { AttachThreadInput(target_thread, fenestra_thread, true) };
+    let _ = unsafe { AttachThreadInput(target_thread, fenestra_thread, true) };
 }
 
 pub fn detach_thread(target_thread: u32) {
     let fenestra_thread = get_current_thread_id();
-    unsafe { AttachThreadInput(target_thread, fenestra_thread, false) };
+    let _ = unsafe { AttachThreadInput(target_thread, fenestra_thread, false) };
 }
 
 pub fn get_main_module() -> HMODULE {

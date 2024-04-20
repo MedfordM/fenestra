@@ -17,17 +17,20 @@ pub fn window() -> HWND {
     let app_instance: HMODULE = win_api::misc::get_main_module();
     win_api::window::register_class(app_instance, APP_NAME);
 
-    return win_api::window::create_window(
+    let hwnd: HWND = win_api::window::create_window(
         WINDOW_EX_STYLE::default(),
         APP_NAME,
         APP_NAME,
-        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+        WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         400,
         680,
         app_instance,
     );
+    
+    win_api::window::system_tray(&hwnd);
+    return hwnd;
 }
 
 pub fn hooks() -> Vec<HHOOK> {

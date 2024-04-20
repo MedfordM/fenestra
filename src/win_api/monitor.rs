@@ -1,6 +1,6 @@
 use std::mem;
 
-use log::{debug, error};
+use log::error;
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoA, HDC, HMONITOR, MONITOR_DEFAULTTONEAREST, MonitorFromWindow,
