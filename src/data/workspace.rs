@@ -20,6 +20,8 @@ impl Workspace {
             .filter(|window| !windows.contains(window))
             .map(|window| window.clone())
             .collect();
+        let other_window_titles: Vec<String> = other_windows.iter().map(|w| w.title.to_owned()).collect();
+        debug!("Other windows: {:?}", other_window_titles);
         other_windows.iter().for_each(|window| {
             window.minimize();
         });

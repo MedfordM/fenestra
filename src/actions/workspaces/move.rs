@@ -17,15 +17,13 @@ pub struct MoveToWorkspace {
 impl Execute for MoveToWorkspace {
     fn execute(&self) {
         let current_window: Window = get_foreground_window();
-        let mut workspaces = WORKSPACES.lock().unwrap();
-        let mut binding = Workspace::find_by_id(self.id, &mut workspaces);
-        let workspace: &mut Workspace = binding.as_mut();
-        let mut old_binding = Workspace::find_by_window(&current_window, &mut workspaces);
-        let old_workspace: &mut Workspace = old_binding.as_mut();
-        old_workspace.remove_window(&current_window);
-        workspace.add_window(&current_window);
-        workspaces.insert((self.id - 1) as usize, binding);
-        workspaces.insert((old_workspace.id - 1) as usize, old_binding);
+        let mut workspaces = &mut WORKSPACES.lock().unwrap();
+        let target_workspace = &mut Workspace::find_by_id(self.id, &mut workspaces);
+        let current_workspace = &mut Workspace::find_by_window(&current_window, &mut workspaces);
+        current_workspace.remove_window(&current_window);
+        target_workspace.add_window(&current_window);
+        workspaces[(&self.id  - 1) as usize] = target_workspace.clone();
+        workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
     }
 }
 

@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use std::process::exit;
 
-use log::error;
+use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM
@@ -10,7 +10,7 @@ use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::Shell::{Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA};
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_FORCEMINIMIZE, SW_SHOW, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_FORCEMINIMIZE, SW_RESTORE, SW_SHOW, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
 
 use crate::data::window::Window;
 use crate::hooks;
@@ -288,16 +288,20 @@ pub fn set_window_pos(window: &Window, offset: i32) {
 }
 
 pub fn minimize_window(window: &Window) {
-    let result = unsafe { ShowWindow(window.hwnd, SW_FORCEMINIMIZE) };
+    let result = unsafe { ShowWindow(window.hwnd, SW_SHOWMINNOACTIVE) };
     if !result.as_bool() {
         error!("Unable to minimize window {}", window.title);
+    } else {
+        debug!("Minimized {}", window.title);
     }
 }
 
 pub fn restore_window(window: &Window) {
-    let result = unsafe { ShowWindow(window.hwnd, SW_SHOW) };
+    let result = unsafe { ShowWindow(window.hwnd, SW_RESTORE) };
     if !result.as_bool() {
         error!("Unable to restore window {}", window.title);
+    } else {
+        debug!("Restored {}", window.title);
     }
 }
 

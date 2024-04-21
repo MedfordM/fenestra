@@ -6,7 +6,7 @@ use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
 use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos};
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Window {
     pub title: String,
     pub hwnd: HWND,
@@ -158,4 +158,10 @@ impl Window {
     //     set_window_placement(self, placement);
     //     self.placement = placement.clone();
     // }
+}
+
+impl PartialEq for Window {
+    fn eq(&self, other: &Self) -> bool {
+        self.hwnd == other.hwnd || self.title == other.title
+    }
 }
