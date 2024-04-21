@@ -6,10 +6,11 @@ use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM
 };
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, DWMWINDOWATTRIBUTE};
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::Shell::{Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA};
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_FORCEMINIMIZE, SW_SHOW, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_FORCEMINIMIZE, SW_SHOW, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
 
 use crate::data::window::Window;
 use crate::hooks;
@@ -213,7 +214,7 @@ pub fn get_all() -> Vec<Window> {
             return BOOL::from(true);
         }
         let application: Window = Window::from(hwnd);
-        if application.title.len() == 0 {
+        if application.title.len() == 0 || application.title.contains("Settings") {
             return BOOL::from(true);
         }
         unsafe {
@@ -232,7 +233,11 @@ pub fn get_all() -> Vec<Window> {
 pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let window_info: WINDOWINFO = get_window_coords(hwnd);
-    let window_rect: RECT = get_rect(hwnd);
+    let rect: RECT = get_rect(hwnd);
+    let mut border_thickness = 0;
+    get_ext_attr(hwnd, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &mut border_thickness);
+    let mut bounding_rect: RECT = RECT::default();
+    get_ext_attr(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut bounding_rect);
     let monitor_result = MONITORS
         .lock()
         .unwrap()
@@ -254,24 +259,30 @@ pub fn get_window(hwnd: HWND) -> Window {
         hwnd,
         thread_id,
         process_id,
-        rect: window_rect,
+        border_thickness,
+        rect,
+        bounding_rect,
         info: window_info,
         placement: window_placement,
         monitor,
     }
 }
 
-pub fn set_window_pos(window: &Window) {
-    // debug!("Setting position for '{}' from {:?} to {:?}", &window.title, &window.info.rcWindow, window.);
+pub fn set_window_pos(window: &Window, offset: i32) {
+    let adj_left: i32 = window.rect.left + offset;
+    let width: i32 = window.rect.right - adj_left - offset;
+    let height: i32 = window.rect.bottom - window.rect.top - offset;
+    //debug!("Setting position for {} to {:?}", &window.title, RECT{left: adj_left, top: window.rect.top, right: adj_left + width, bottom: window.rect.top + height});
+
     handle_result(unsafe {
         SetWindowPos(
             window.hwnd,
             None,
-            window.rect.left - window.info.cxWindowBorders as i32,
-            window.rect.top - window.info.cyWindowBorders as i32,
-            window.rect.right + window.info.cxWindowBorders as i32,
-            window.rect.bottom + window.info.cyWindowBorders as i32,
-            SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_FRAMECHANGED,
+            adj_left,
+            window.rect.top,
+            width,
+            height,
+            SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
         )
     });
 }
@@ -307,6 +318,10 @@ pub fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
     let mut window_placement: WINDOWPLACEMENT = WINDOWPLACEMENT::default();
     let _ = handle_result(unsafe { GetWindowPlacement(hwnd, &mut window_placement) });
     return window_placement;
+}
+
+fn get_ext_attr<T>(hwnd: HWND, attr: DWMWINDOWATTRIBUTE, value: &mut T) {
+    handle_result( unsafe { DwmGetWindowAttribute(hwnd, attr, (value as *mut T).cast(), u32::try_from(std::mem::size_of::<T>()).unwrap()) });
 }
 
 fn get_window_coords(hwnd: HWND) -> WINDOWINFO {

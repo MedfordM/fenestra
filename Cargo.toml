@@ -21,5 +21,6 @@ features = [
     "System",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_System_StationsAndDesktops",
-    "Win32_UI_Shell"
+    "Win32_UI_Shell",
+    "Win32_Graphics_Dwm",
 ]

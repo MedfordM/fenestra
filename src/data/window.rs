@@ -13,6 +13,8 @@ pub struct Window {
     pub thread_id: u32,
     pub process_id: u32,
     pub rect: RECT,
+    pub bounding_rect: RECT,
+    pub border_thickness: u32,
     pub info: WINDOWINFO,
     pub placement: WINDOWPLACEMENT,
     pub monitor: Monitor,
@@ -40,30 +42,16 @@ impl Window {
             .iter()
             .filter(|window| window != &self)
             .map(|window| Window {
-                title: String::from(&window.title),
-                hwnd: window.hwnd,
-                thread_id: window.thread_id,
-                process_id: window.process_id,
-                rect: window.rect,
                 info: WINDOWINFO {
-                    cbSize: window.info.cbSize,
                     rcWindow: RECT {
                         left: window.info.rcWindow.left + window.info.cxWindowBorders as i32,
                         top: window.info.rcWindow.top + window.info.cyWindowBorders as i32,
                         right: window.info.rcWindow.right,
                         bottom: window.info.rcWindow.bottom,
                     },
-                    rcClient: window.info.rcClient,
-                    dwStyle: window.info.dwStyle,
-                    dwExStyle: window.info.dwExStyle,
-                    dwWindowStatus: window.info.dwWindowStatus,
-                    cxWindowBorders: window.info.cxWindowBorders,
-                    cyWindowBorders: window.info.cyWindowBorders,
-                    atomWindowType: window.info.atomWindowType,
-                    wCreatorVersion: window.info.wCreatorVersion,
+                    ..window.info
                 },
-                placement: window.placement,
-                monitor: window.monitor.clone(),
+                ..window.clone()
             })
             .collect();
         let monitor_windows: Vec<Window> = candidate_windows
@@ -147,35 +135,23 @@ impl Window {
     }
 
     pub fn swap_windows(&mut self, mut window: Window) {
-        let mut current_pos: RECT = self.rect;
-        let mut target_pos: RECT = window.rect;
-        if self.info.cxWindowBorders != window.info.cxWindowBorders {
-            debug!("Adjusting x delta");
-            let delta = self.info.cxWindowBorders - window.info.cxWindowBorders;
-            current_pos.left = current_pos.left + delta as i32;
-            current_pos.right = current_pos.right + delta as i32;
-            target_pos.left = target_pos.left - delta as i32;
-            target_pos.right = target_pos.right + delta as i32;
-        }
-        if self.info.cyWindowBorders != window.info.cyWindowBorders {
-            debug!("Adjusting y delta");
-            let delta = self.info.cyWindowBorders - window.info.cyWindowBorders;
-            current_pos.top = current_pos.top - delta as i32;
-            current_pos.bottom = current_pos.bottom + delta as i32;
-            target_pos.top = target_pos.top - delta as i32;
-            target_pos.bottom = target_pos.bottom + delta as i32;
-        }
-        window.set_position(current_pos);
-        self.set_position(target_pos);
+        let current_pos: RECT = self.rect;
+        let target_pos: RECT = window.rect;
+        // Calculate drop shadow width
+        let current_delta = self.bounding_rect.left - self.rect.left;
+        let target_delta = window.bounding_rect.left - window.rect.left;
+        window.set_position(current_pos, current_delta - target_delta);
+        self.set_position(target_pos, target_delta - current_delta);
     }
 
     pub fn from(hwnd: HWND) -> Self {
         return get_window(hwnd);
     }
 
-    fn set_position(&mut self, position: RECT) {
+    fn set_position(&mut self, position: RECT, offset: i32) {
+        //debug!("Old window position for {}: {:?} with offset {}", self.title, &self.rect, offset);
         self.rect = position;
-        set_window_pos(self);
+        set_window_pos(self, offset);
     }
 
     // fn set_placement(&mut self, placement: &WINDOWPLACEMENT) {
