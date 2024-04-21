@@ -4,7 +4,7 @@ use windows::Win32::UI::WindowsAndMessaging::{WINDOWINFO, WINDOWPLACEMENT};
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
-use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_placement};
+use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Window {
@@ -12,6 +12,7 @@ pub struct Window {
     pub hwnd: HWND,
     pub thread_id: u32,
     pub process_id: u32,
+    pub rect: RECT,
     pub info: WINDOWINFO,
     pub placement: WINDOWPLACEMENT,
     pub monitor: Monitor,
@@ -43,6 +44,7 @@ impl Window {
                 hwnd: window.hwnd,
                 thread_id: window.thread_id,
                 process_id: window.process_id,
+                rect: window.rect,
                 info: WINDOWINFO {
                     cbSize: window.info.cbSize,
                     rcWindow: RECT {
@@ -145,23 +147,39 @@ impl Window {
     }
 
     pub fn swap_windows(&mut self, mut window: Window) {
-        let current_placement: WINDOWPLACEMENT = self.placement;
-        let target_placement: WINDOWPLACEMENT = window.placement;
-        window.set_placement(&current_placement);
-        self.set_placement(&target_placement);
+        let mut current_pos: RECT = self.rect;
+        let mut target_pos: RECT = window.rect;
+        if self.info.cxWindowBorders != window.info.cxWindowBorders {
+            debug!("Adjusting x delta");
+            let delta = self.info.cxWindowBorders - window.info.cxWindowBorders;
+            current_pos.left = current_pos.left + delta as i32;
+            current_pos.right = current_pos.right + delta as i32;
+            target_pos.left = target_pos.left - delta as i32;
+            target_pos.right = target_pos.right + delta as i32;
+        }
+        if self.info.cyWindowBorders != window.info.cyWindowBorders {
+            debug!("Adjusting y delta");
+            let delta = self.info.cyWindowBorders - window.info.cyWindowBorders;
+            current_pos.top = current_pos.top - delta as i32;
+            current_pos.bottom = current_pos.bottom + delta as i32;
+            target_pos.top = target_pos.top - delta as i32;
+            target_pos.bottom = target_pos.bottom + delta as i32;
+        }
+        window.set_position(current_pos);
+        self.set_position(target_pos);
     }
 
     pub fn from(hwnd: HWND) -> Self {
         return get_window(hwnd);
     }
 
-    // fn set_position(&mut self, position: RECT) {
-    //     self.info.rcWindow = position;
-    //     set_window_pos(self);
-    // }
-
-    fn set_placement(&mut self, placement: &WINDOWPLACEMENT) {
-        set_window_placement(self, placement);
-        self.placement = placement.clone();
+    fn set_position(&mut self, position: RECT) {
+        self.rect = position;
+        set_window_pos(self);
     }
+
+    // fn set_placement(&mut self, placement: &WINDOWPLACEMENT) {
+    //     set_window_placement(self, placement);
+    //     self.placement = placement.clone();
+    // }
 }

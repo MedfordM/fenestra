@@ -1,15 +1,15 @@
 use std::ffi::CString;
 use std::process::exit;
 
-use log::{debug, error};
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
-    GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, WIN32_ERROR, WPARAM
+    GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::Shell::{Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA};
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPlacement, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SW_FORCEMINIMIZE, SW_SHOW, SW_SHOWNOACTIVATE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WPF_ASYNCWINDOWPLACEMENT, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_FORCEMINIMIZE, SW_SHOW, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
 
 use crate::data::window::Window;
 use crate::hooks;
@@ -232,6 +232,7 @@ pub fn get_all() -> Vec<Window> {
 pub fn get_window(hwnd: HWND) -> Window {
     let title: String = get_window_title(hwnd);
     let window_info: WINDOWINFO = get_window_coords(hwnd);
+    let window_rect: RECT = get_rect(hwnd);
     let monitor_result = MONITORS
         .lock()
         .unwrap()
@@ -253,25 +254,27 @@ pub fn get_window(hwnd: HWND) -> Window {
         hwnd,
         thread_id,
         process_id,
+        rect: window_rect,
         info: window_info,
         placement: window_placement,
         monitor,
     }
 }
 
-// pub fn set_window_pos(window: &Window) {
-//     handle_result(unsafe {
-//         SetWindowPos(
-//             window.hwnd,
-//             None,
-//             window.info.rcWindow.left - window.info.cxWindowBorders as i32,
-//             window.info.rcWindow.top - window.info.cyWindowBorders as i32,
-//             window.info.rcWindow.right,
-//             window.info.rcWindow.bottom,
-//             SWP_FRAMECHANGED,
-//         )
-//     });
-// }
+pub fn set_window_pos(window: &Window) {
+    // debug!("Setting position for '{}' from {:?} to {:?}", &window.title, &window.info.rcWindow, window.);
+    handle_result(unsafe {
+        SetWindowPos(
+            window.hwnd,
+            None,
+            window.rect.left - window.info.cxWindowBorders as i32,
+            window.rect.top - window.info.cyWindowBorders as i32,
+            window.rect.right + window.info.cxWindowBorders as i32,
+            window.rect.bottom + window.info.cyWindowBorders as i32,
+            SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_FRAMECHANGED,
+        )
+    });
+}
 
 pub fn minimize_window(window: &Window) {
     let result = unsafe { ShowWindow(window.hwnd, SW_FORCEMINIMIZE) };
@@ -287,18 +290,18 @@ pub fn restore_window(window: &Window) {
     }
 }
 
-pub fn set_window_placement(window: &Window, new_placement: &WINDOWPLACEMENT) {
-    let placement: WINDOWPLACEMENT = WINDOWPLACEMENT {
-        length: new_placement.length,
-        flags: WPF_ASYNCWINDOWPLACEMENT,
-        showCmd: SW_SHOW.0 as u32,
-        ptMinPosition: new_placement.ptMinPosition,
-        ptMaxPosition: new_placement.ptMaxPosition,
-        rcNormalPosition: new_placement.rcNormalPosition,
-    };
-    debug!("Setting '{}' position to {:?}", &window.title, &placement);
-    handle_result(unsafe { SetWindowPlacement(window.hwnd, &placement as *const WINDOWPLACEMENT) });
-}
+// pub fn set_window_placement(window: &Window, new_placement: &WINDOWPLACEMENT) {
+//     let placement: WINDOWPLACEMENT = WINDOWPLACEMENT {
+//         length: new_placement.length,
+//         flags: WPF_ASYNCWINDOWPLACEMENT,
+//         showCmd: SW_SHOW.0 as u32,
+//         ptMinPosition: new_placement.ptMinPosition,
+//         ptMaxPosition: new_placement.ptMaxPosition,
+//         rcNormalPosition: new_placement.rcNormalPosition,
+//     };
+//     debug!("Setting '{}' position to {:?}", &window.title, &placement);
+//     handle_result(unsafe { SetWindowPlacement(window.hwnd, &placement as *const WINDOWPLACEMENT) });
+// }
 
 pub fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
     let mut window_placement: WINDOWPLACEMENT = WINDOWPLACEMENT::default();
@@ -310,6 +313,12 @@ fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
     let mut window_info: WINDOWINFO = WINDOWINFO::default();
     handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
     return window_info;
+}
+
+fn get_rect(hwnd: HWND) -> RECT {
+    let mut rect = RECT::default();
+    handle_result(unsafe { GetWindowRect(hwnd, &mut rect) });
+    return rect;
 }
 
 fn get_window_title(handle: HWND) -> String {
