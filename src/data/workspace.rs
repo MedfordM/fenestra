@@ -7,27 +7,29 @@ use crate::data::window::Window;
 #[derive(Clone, PartialEq)]
 pub struct Workspace {
     pub id: u32,
+    pub focused: bool,
     pub windows: Vec<Window>,
 }
 
 impl Workspace {
-    pub fn focus(&self) {
+    pub fn focus(&mut self) {
         let windows = &self.windows;
         let window_titles: Vec<String> = windows.iter().map(|w| w.title.to_owned()).collect();
-        debug!("Windows on workspace {}: {:?}", self.id, &window_titles);
-        let other_windows: Vec<Window> = Window::get_all_windows()
-            .iter()
-            .filter(|window| !windows.contains(window))
-            .map(|window| window.clone())
-            .collect();
-        let other_window_titles: Vec<String> = other_windows.iter().map(|w| w.title.to_owned()).collect();
-        debug!("Other windows: {:?}", other_window_titles);
-        other_windows.iter().for_each(|window| {
-            window.minimize();
-        });
+        debug!("Focusing workspace {} windows: {:?}", self.id, &window_titles);
         windows.iter().for_each(|window| {
             window.restore();
         });
+        self.focused = true;
+    }
+
+    pub fn unfocus(&mut self) {
+        let windows = &self.windows;
+        let window_titles: Vec<String> = windows.iter().map(|w| w.title.to_owned()).collect();
+        debug!("Unfocusing workspace {} windows: {:?}", self.id, &window_titles);
+        windows.iter().for_each(|window| {
+            window.minimize();
+        });
+        self.focused = false;
     }
 
     pub fn remove_window(&mut self, window: &Window) {
@@ -44,6 +46,11 @@ impl Workspace {
         self.windows.push(window.clone());
     }
 
+    pub fn current(workspaces: &Vec<Box<Workspace>>) -> Box<Workspace> {
+        let result = workspaces.iter().find(|workspace| workspace.focused == true).cloned().expect("No currently focused workspace");
+        return result;
+    }
+
     pub fn find_by_id(id: u32, workspaces: &mut Vec<Box<Workspace>>) -> Box<Workspace> {
         debug!("Attempting to find workspace {}", id);
         let search_result = workspaces.iter().find(|workspace| workspace.id == id).map(|w| w.to_owned());
@@ -51,6 +58,7 @@ impl Workspace {
             debug!("Creating workspace {}", id);
             let workspace: Box<Workspace> = Box::new(Workspace {
                 id,
+                focused: false,
                 windows: vec![],
             });
             workspaces.push(Box::clone(&workspace));

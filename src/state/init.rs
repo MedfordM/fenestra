@@ -54,12 +54,14 @@ pub fn workspaces() -> Vec<Box<Workspace>> {
     let mut workspaces: Vec<Box<Workspace>> = vec![];
     let default_workspace: Workspace = Workspace {
         id: 1,
+        focused: true,
         windows: Window::get_all_windows()
     };
     workspaces.push(Box::new(default_workspace));
     for i in 2..10 {
         let workspace: Workspace = Workspace {
             id: i,
+            focused: false,
             windows: vec![],
         };
         workspaces.push(Box::new(workspace));

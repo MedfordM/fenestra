@@ -1,7 +1,7 @@
 use std::process::exit;
 use std::str::FromStr;
 
-use log::{debug, error};
+use log::error;
 
 use crate::data::action::Execute;
 use crate::data::workspace::Workspace;
@@ -14,10 +14,13 @@ pub struct FocusWorkspace {
 
 impl Execute for FocusWorkspace {
     fn execute(&self) {
-        debug!("Focusing workspace {}", self.id);
         let mut workspaces = WORKSPACES.lock().unwrap();
-        let workspace: Box<Workspace> = Workspace::find_by_id(self.id, &mut workspaces);
-        workspace.focus();
+        let mut current_workspace = Workspace::current(&workspaces);
+        current_workspace.unfocus();
+        let mut target_workspace: Box<Workspace> = Workspace::find_by_id(self.id, &mut workspaces);
+        target_workspace.focus();
+        workspaces[(&self.id  - 1) as usize] = target_workspace.clone();
+        workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
     }
 }
 
