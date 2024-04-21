@@ -145,35 +145,9 @@ impl Window {
     }
 
     pub fn swap_windows(&mut self, mut window: Window) {
-        // let current_position: RECT = RECT {
-        //     left: self.info.rcWindow.left,
-        //     top: self.info.rcWindow.top,
-        //     right: self.info.rcWindow.right,
-        //     bottom: self.info.rcWindow.bottom,
-        // };
-        // let new_position: RECT = window.info.rcWindow;
-        //
-        // debug!(
-        //     "Setting {} position from {:?} to {:?}",
-        //     window.title, window.info.rcWindow, current_position
-        // );
-        // window.set_position(current_position);
-        // debug!(
-        //     "Setting {} position from {:?} to {:?}",
-        //     self.title, self.info.rcWindow, new_position
-        // );
-        // self.set_position(new_position);
         let current_placement: WINDOWPLACEMENT = self.placement;
         let target_placement: WINDOWPLACEMENT = window.placement;
-        debug!(
-            "Setting {} position from {:?} to {:?}",
-            window.title, window.placement, current_placement
-        );
         window.set_placement(&current_placement);
-        debug!(
-            "Setting {} position from {:?} to {:?}",
-            self.title, self.placement, target_placement
-        );
         self.set_placement(&target_placement);
     }
 

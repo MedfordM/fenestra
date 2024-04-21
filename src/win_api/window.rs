@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use std::process::exit;
 
-use log::error;
+use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, WIN32_ERROR, WPARAM
@@ -9,7 +9,7 @@ use windows::Win32::Foundation::{
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::Shell::{Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA};
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPlacement, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SW_FORCEMINIMIZE, SW_SHOW, SW_SHOWNOACTIVATE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
+use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPlacement, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, HHOOK, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SW_FORCEMINIMIZE, SW_SHOW, SW_SHOWNOACTIVATE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WPF_ASYNCWINDOWPLACEMENT, WS_CAPTION, WS_MAXIMIZEBOX, WS_VISIBLE};
 
 use crate::data::window::Window;
 use crate::hooks;
@@ -187,7 +187,7 @@ pub fn set_foreground_window(app: &Window) {
         attach_thread(current_window);
         restore_window(app);
         BringWindowToTop(app.hwnd).unwrap();
-        let _ = ShowWindow(app.hwnd, SW_SHOW);
+        //let _ = ShowWindow(app.hwnd, SW_SHOW);
         detach_thread(current_window);
     }
 }
@@ -281,21 +281,22 @@ pub fn minimize_window(window: &Window) {
 }
 
 pub fn restore_window(window: &Window) {
-    let result = unsafe { ShowWindow(window.hwnd, SW_SHOWNOACTIVATE) };
+    let result = unsafe { ShowWindow(window.hwnd, SW_SHOW) };
     if !result.as_bool() {
-        error!("Unable to minimize window {}", window.title);
+        error!("Unable to restore window {}", window.title);
     }
 }
 
 pub fn set_window_placement(window: &Window, new_placement: &WINDOWPLACEMENT) {
     let placement: WINDOWPLACEMENT = WINDOWPLACEMENT {
         length: new_placement.length,
-        flags: new_placement.flags,
-        showCmd: new_placement.showCmd,
+        flags: WPF_ASYNCWINDOWPLACEMENT,
+        showCmd: SW_SHOW.0 as u32,
         ptMinPosition: new_placement.ptMinPosition,
         ptMaxPosition: new_placement.ptMaxPosition,
         rcNormalPosition: new_placement.rcNormalPosition,
     };
+    debug!("Setting '{}' position to {:?}", &window.title, &placement);
     handle_result(unsafe { SetWindowPlacement(window.hwnd, &placement as *const WINDOWPLACEMENT) });
 }
 
