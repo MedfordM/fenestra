@@ -4,8 +4,6 @@ use windows::Win32::UI::WindowsAndMessaging::{SW_SHOWMINIMIZED, WINDOWINFO, WIND
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
-use crate::data::workspace::Workspace;
-use crate::state::WORKSPACES;
 use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos};
 
 #[derive(Debug, Clone, Default)]
@@ -40,8 +38,7 @@ impl Window {
     }
 
     pub fn find_nearest_in_direction(&self, direction: &Direction) -> Window {
-        let workspaces = WORKSPACES.lock().unwrap();
-        let candidate_windows: Vec<Window> = Workspace::current(&workspaces).windows
+        let candidate_windows: Vec<Window> = Window::get_all_windows()
             .iter()
             .filter(|window| window != &self && window.placement.showCmd != SW_SHOWMINIMIZED.0 as u32)
             .map(|window| Window {
