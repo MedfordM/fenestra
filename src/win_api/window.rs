@@ -186,7 +186,7 @@ pub fn set_foreground_window(app: &Window) {
     unsafe {
         let current_window = GetWindowThreadProcessId(GetForegroundWindow(), None);
         attach_thread(current_window);
-        restore_window(app);
+        //restore_window(app);
         BringWindowToTop(app.hwnd).unwrap();
         //let _ = ShowWindow(app.hwnd, SW_SHOW);
         detach_thread(current_window);
