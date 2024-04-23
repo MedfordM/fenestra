@@ -16,8 +16,11 @@ impl Execute for FocusWorkspace {
     fn execute(&self) {
         let mut workspaces = WORKSPACES.lock().unwrap();
         let mut current_workspace = Workspace::current(&workspaces);
-        current_workspace.unfocus();
         let mut target_workspace: Box<Workspace> = Workspace::find_by_id(self.id, &mut workspaces);
+        if current_workspace.id == target_workspace.id {
+            return;
+        }
+        current_workspace.unfocus();
         target_workspace.focus();
         workspaces[(&self.id  - 1) as usize] = target_workspace.clone();
         workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
