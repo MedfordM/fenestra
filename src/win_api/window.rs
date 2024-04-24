@@ -5,13 +5,29 @@ use std::process::exit;
 use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
-    GetLastError, BOOL, COLORREF, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM
+    GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM,
 };
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, DWMWINDOWATTRIBUTE};
+use windows::Win32::Graphics::Dwm::{
+    DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
+    DWMWINDOWATTRIBUTE,
+};
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
-use windows::Win32::UI::Shell::{Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA};
-use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetLayeredWindowAttributes, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, LWA_COLORKEY, MF_STRING, MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MINIMIZE, SW_RESTORE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_VISIBLE};
+use windows::Win32::UI::Shell::{
+    Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu,
+    DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo,
+    GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId,
+    InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA,
+    SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW,
+    CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG,
+    SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MINIMIZE, SW_RESTORE,
+    TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
+    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT,
+    WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_VISIBLE,
+};
 
 use crate::data::window::Window;
 use crate::hooks;
@@ -30,15 +46,15 @@ pub fn system_tray(hwnd: &HWND) {
         cbSize: Default::default(),
         hWnd: *hwnd,
         uID: 0,
-        uFlags:  NIF_TIP | NIF_ICON | NIF_MESSAGE,
+        uFlags: NIF_TIP | NIF_ICON | NIF_MESSAGE,
         uCallbackMessage: WM_APP + 1,
         hIcon: unsafe { LoadIconW(HMODULE::default(), IDI_APPLICATION).unwrap() },
-        szTip: [0;128],
+        szTip: [0; 128],
         dwState: Default::default(),
         dwStateMask: Default::default(),
-        szInfo: [0;256],
+        szInfo: [0; 256],
         Anonymous: Default::default(),
-        szInfoTitle: [0;64],
+        szInfoTitle: [0; 64],
         dwInfoFlags: Default::default(),
         guidItem: Default::default(),
         hBalloonIcon: Default::default(),
@@ -52,32 +68,32 @@ pub fn system_tray(hwnd: &HWND) {
 pub fn display_tray_menu(hwnd: HWND) {
     let mut item_text: String = String::from("Quit\0");
     unsafe {
-		let context_menu = handle_result(CreatePopupMenu());
-		handle_result(InsertMenuA(
-			context_menu,
-			0,
-			MF_STRING,
+        let context_menu = handle_result(CreatePopupMenu());
+        handle_result(InsertMenuA(
+            context_menu,
+            0,
+            MF_STRING,
             (WM_USER + 1) as usize,
-			PCSTR::from_raw(item_text.as_mut_ptr()),
-		));
+            PCSTR::from_raw(item_text.as_mut_ptr()),
+        ));
 
-		let mut cursor_position = POINT { x: 0, y: 0 };
-		handle_result(GetCursorPos(&mut cursor_position));
+        let mut cursor_position = POINT { x: 0, y: 0 };
+        handle_result(GetCursorPos(&mut cursor_position));
 
         let _ = SetForegroundWindow(hwnd);
-		let flags = TPM_RIGHTALIGN | TPM_BOTTOMALIGN | TPM_RIGHTBUTTON;
-		let _ = TrackPopupMenu(
-			context_menu,
-			flags,
-			cursor_position.x,
-			cursor_position.y,
-			0,
-			hwnd.clone(),
-			None,
-		);
-		handle_result(PostMessageA(hwnd, 0, WPARAM(0), LPARAM(0)));
+        let flags = TPM_RIGHTALIGN | TPM_BOTTOMALIGN | TPM_RIGHTBUTTON;
+        let _ = TrackPopupMenu(
+            context_menu,
+            flags,
+            cursor_position.x,
+            cursor_position.y,
+            0,
+            hwnd.clone(),
+            None,
+        );
+        handle_result(PostMessageA(hwnd, 0, WPARAM(0), LPARAM(0)));
         handle_result(DestroyMenu(context_menu));
-	}
+    }
 }
 
 pub fn register_class(instance: HMODULE, class_name: &str) {
@@ -87,7 +103,7 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
         w_param: WPARAM,
         l_param: LPARAM,
     ) -> LRESULT {
-        const NOTIFICATION: u32 = (WM_APP + 1) as u32;
+        const NOTIFICATION: u32 = WM_APP + 1;
         match message {
             WM_PAINT => unsafe {
                 _ = ValidateRect(window, None);
@@ -102,13 +118,13 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
                     display_tray_menu(window);
                 }
                 LRESULT(0)
-            },
+            }
             WM_COMMAND => {
                 if w_param.0 == (WM_USER + 1) as usize {
                     unsafe { PostQuitMessage(0) };
                 }
                 LRESULT(0)
-            },
+            }
             _ => unsafe { DefWindowProcA(window, message, w_param, l_param) },
         }
     }
@@ -198,9 +214,9 @@ pub fn get_style(handle: HWND) -> i32 {
     return get_window_info(handle, GWL_STYLE);
 }
 
-pub fn set_transparent(hwnd: HWND) {
-    handle_result(unsafe { SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY) });
-}
+// pub fn set_transparent(hwnd: HWND) {
+//     handle_result(unsafe { SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY) });
+// }
 
 static mut WINDOWS: Vec<Window> = Vec::new();
 pub fn get_all() -> HashSet<Window> {
@@ -208,7 +224,6 @@ pub fn get_all() -> HashSet<Window> {
         WINDOWS.clear();
     }
     extern "system" fn enum_windows_callback(hwnd: HWND, _: LPARAM) -> BOOL {
-
         let application = get_window(hwnd);
         if application.is_some() {
             unsafe { WINDOWS.push(application.unwrap()) };
@@ -241,7 +256,11 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     let window_info: WINDOWINFO = get_window_coords(hwnd);
     let rect: RECT = get_rect(hwnd);
     let mut border_thickness = 0;
-    get_ext_attr(hwnd, DWMWA_VISIBLE_FRAME_BORDER_THICKNESS, &mut border_thickness);
+    get_ext_attr(
+        hwnd,
+        DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
+        &mut border_thickness,
+    );
     let mut bounding_rect: RECT = RECT::default();
     get_ext_attr(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut bounding_rect);
     let monitor_result = MONITORS
@@ -330,7 +349,14 @@ pub fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
 }
 
 fn get_ext_attr<T>(hwnd: HWND, attr: DWMWINDOWATTRIBUTE, value: &mut T) {
-    handle_result( unsafe { DwmGetWindowAttribute(hwnd, attr, (value as *mut T).cast(), u32::try_from(std::mem::size_of::<T>()).unwrap()) });
+    handle_result(unsafe {
+        DwmGetWindowAttribute(
+            hwnd,
+            attr,
+            (value as *mut T).cast(),
+            u32::try_from(std::mem::size_of::<T>()).unwrap(),
+        )
+    });
 }
 
 fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
