@@ -1,19 +1,26 @@
 use std::fmt::Debug;
 
-use windows::Win32::Foundation::RECT;
-use windows::Win32::Graphics::Gdi::HMONITOR;
+use windows::Win32::Graphics::Gdi::{DEVMODEA, DISPLAY_DEVICEA, HMONITOR, MONITORINFO};
 
 use crate::data::common::direction::Direction;
 use crate::data::workspace::Workspace;
 use crate::win_api::monitor::{get_all, get_monitor};
 
-#[derive(Clone, PartialEq, Default)]
+#[derive(Clone, Default)]
 pub struct Monitor {
     pub hmonitor: HMONITOR,
     pub name: String,
-    pub position: RECT,
+    pub info: MONITORINFO,
+    // pub display: DISPLAY_DEVICEA,
+    pub device_mode: DEVMODEA,
     pub workspaces: Vec<Workspace>,
     pub neighbors: Vec<(Direction, String)>,
+}
+
+impl PartialEq for Monitor {
+    fn eq(&self, other: &Self) -> bool {
+        self.hmonitor == other.hmonitor || self.name == other.name
+    }
 }
 
 impl Monitor {
@@ -30,7 +37,7 @@ impl Debug for Monitor {
         write!(
             f,
             "{}: {:?}, {:?}, Neighbors: {:?}",
-            self.name, self.position, self.workspaces, self.neighbors
+            self.name, self.info.rcWork, self.workspaces, self.neighbors
         )
     }
 }
