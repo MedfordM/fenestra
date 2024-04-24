@@ -26,7 +26,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MINIMIZE, SW_RESTORE,
     TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
     WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT,
-    WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_VISIBLE,
+    WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -241,6 +241,10 @@ pub fn get_all() -> HashSet<Window> {
 pub fn get_window(hwnd: HWND) -> Option<Window> {
     let window_style: u32 = get_style(hwnd) as u32;
     if window_style & WS_VISIBLE.0 == 0 {
+        return None;
+    }
+
+    if window_style & WS_OVERLAPPEDWINDOW.0 == 0 {
         return None;
     }
     // if window_style & WS_CAPTION.0 == 0 {
