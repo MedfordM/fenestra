@@ -23,4 +23,5 @@ features = [
     "Win32_System_StationsAndDesktops",
     "Win32_UI_Shell",
     "Win32_Graphics_Dwm",
+    "Win32_UI_Accessibility",
 ]

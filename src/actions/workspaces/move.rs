@@ -19,11 +19,14 @@ impl Execute for MoveToWorkspace {
         let current_window: Window = get_foreground_window();
         let mut workspaces = &mut WORKSPACES.lock().unwrap();
         let target_workspace = &mut Workspace::find_by_id(self.id, &mut workspaces);
-        let current_workspace = &mut Workspace::find_by_window(&current_window, &mut workspaces);
-        current_workspace.remove_window(&current_window);
+        let current_workspace_result = Workspace::find_by_window(&current_window, &mut workspaces);
+        if current_workspace_result.is_some() {
+            let mut current_workspace = current_workspace_result.unwrap();
+            current_workspace.remove_window(&current_window);
+            workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
+        }
         target_workspace.add_window(&current_window);
         workspaces[(&self.id  - 1) as usize] = target_workspace.clone();
-        workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
     }
 }
 

@@ -2,10 +2,9 @@ use std::process::exit;
 
 use log::error;
 use windows::core::Error;
-use windows::Win32::Foundation::{GetLastError, HMODULE, LPARAM, LRESULT, WIN32_ERROR, WPARAM};
+use windows::Win32::Foundation::{GetLastError, HMODULE, WIN32_ERROR};
 use windows::Win32::System::LibraryLoader::GetModuleHandleA;
 use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
-use windows::Win32::UI::WindowsAndMessaging::{CallNextHookEx, UnhookWindowsHookEx, HHOOK};
 
 pub fn handle_result<T>(result: Result<T, Error>) -> T {
     if result.is_err() {
@@ -17,17 +16,6 @@ pub fn handle_result<T>(result: Result<T, Error>) -> T {
         exit(error.0 as i32);
     }
     return result.unwrap().into();
-}
-
-pub fn unset_hook(hook: &HHOOK) {
-    let result = unsafe { UnhookWindowsHookEx(hook.to_owned()) };
-    if result.is_err() {
-        error!("Failed to unset hooks");
-    }
-}
-
-pub fn call_next_hook(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
-    return unsafe { CallNextHookEx(None, code, w_param, l_param) };
 }
 
 fn get_current_thread_id() -> u32 {

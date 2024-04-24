@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use log::debug;
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{SW_SHOWMINIMIZED, WINDOWINFO, WINDOWPLACEMENT};
@@ -20,8 +22,16 @@ pub struct Window {
     pub monitor: Monitor,
 }
 
+impl Eq for Window {}
+
+impl std::hash::Hash for Window {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.title.hash(state);
+    }
+}
+
 impl Window {
-    pub fn get_all_windows() -> Vec<Window> {
+    pub fn get_all_windows() -> HashSet<Window> {
         return get_all();
     }
 
@@ -144,7 +154,7 @@ impl Window {
         self.set_position(target_pos, target_delta - current_delta);
     }
 
-    pub fn from(hwnd: HWND) -> Self {
+    pub fn from(hwnd: HWND) -> Option<Self> {
         return get_window(hwnd);
     }
 

@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use crate::data::action::Execute;
 use crate::data::common::direction::Direction;
-use crate::data::window::Window;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
@@ -13,7 +12,7 @@ pub struct FocusWindow {
 impl Execute for FocusWindow {
     fn execute(&self) {
         let current = get_foreground_window();
-        let target: Window = current.find_nearest_in_direction(&self.direction);
+        let target = current.find_nearest_in_direction(&self.direction);
         target.focus();
     }
 }

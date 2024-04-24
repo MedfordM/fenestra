@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use windows::Win32::Foundation::{HMODULE, HWND};
@@ -33,8 +34,8 @@ pub fn window() -> HWND {
     return hwnd;
 }
 
-pub fn hooks() -> Vec<HHOOK> {
-    let hooks: Vec<HHOOK> = hooks::set_hooks();
+pub fn hooks() -> Vec<(String, isize)> {
+    let hooks: Vec<(String, isize)> = hooks::set_hooks();
     return hooks;
 }
 
@@ -62,7 +63,7 @@ pub fn workspaces() -> Vec<Box<Workspace>> {
         let workspace: Workspace = Workspace {
             id: i,
             focused: false,
-            windows: vec![],
+            windows: HashSet::new(),
         };
         workspaces.push(Box::new(workspace));
     }

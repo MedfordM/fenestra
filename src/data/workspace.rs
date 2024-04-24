@@ -1,14 +1,14 @@
-use std::fmt::{Debug, Formatter};
+use std::{collections::HashSet, fmt::{Debug, Formatter}};
 
-use log::{debug, error};
+use log::debug;
 
 use crate::data::window::Window;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Workspace {
     pub id: u32,
     pub focused: bool,
-    pub windows: Vec<Window>,
+    pub windows: HashSet<Window>,
 }
 
 impl Workspace {
@@ -33,17 +33,18 @@ impl Workspace {
     }
 
     pub fn remove_window(&mut self, window: &Window) {
-        let index = self.windows.iter().position(|w| w == window);
-        if index.is_some() {
+        let result = self.windows.remove(window);
+        if result {
             debug!("Removed {} from workspace {}", window.title, self.id);
-            self.windows.remove(index.unwrap());
             window.minimize();
         }
     }
 
     pub fn add_window(&mut self, window: &Window) {
-        debug!("Added {} to workspace {}", &window.title, &self.id);
-        self.windows.push(window.clone());
+        let result = self.windows.insert(window.clone());
+        if result {
+            debug!("Added {} to workspace {}", &window.title, &self.id);
+        }
     }
 
     pub fn current(workspaces: &Vec<Box<Workspace>>) -> Box<Workspace> {
@@ -52,37 +53,15 @@ impl Workspace {
     }
 
     pub fn find_by_id(id: u32, workspaces: &mut Vec<Box<Workspace>>) -> Box<Workspace> {
-        debug!("Attempting to find workspace {}", id);
-        let search_result = workspaces.iter().find(|workspace| workspace.id == id).map(|w| w.to_owned());
-        if search_result.is_none() {
-            debug!("Creating workspace {}", id);
-            let workspace: Box<Workspace> = Box::new(Workspace {
-                id,
-                focused: false,
-                windows: vec![],
-            });
-            workspaces.push(Box::clone(&workspace));
-            return workspace;
-        }
-        return search_result.unwrap();
+        return workspaces[(id - 1) as usize].clone();
     }
 
-    pub fn find_by_window(window: &Window, workspaces: &mut Vec<Box<Workspace>>) -> Box<Workspace> {
-        debug!("Attempting to find workspace containing {}", window.title);
+    pub fn find_by_window(window: &Window, workspaces: &mut Vec<Box<Workspace>>) -> Option<Box<Workspace>> {
         let search_result = workspaces
             .iter()
             .find(|workspace| workspace.windows.contains(window))
             .map(|w| w.to_owned());
-        if search_result.is_none() {
-            error!(
-                "Unable to find workspace for window {}, adding it to the default",
-                window.title
-            );
-            let mut default_workspace: Box<Workspace> = Self::find_by_id(1, workspaces);
-            default_workspace.add_window(window);
-            return default_workspace;
-        }
-        return search_result.unwrap();
+        return search_result;
     }
 }
 
@@ -91,5 +70,11 @@ impl Debug for Workspace {
         let windows = &self.windows;
         let window_titles: Vec<String> = windows.iter().map(|w| w.title.to_owned()).collect();
         write!(f, "Workspace {}: {:?}", &self.id, window_titles)
+    }
+}
+
+impl PartialEq for Workspace {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }
