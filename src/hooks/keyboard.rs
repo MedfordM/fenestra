@@ -1,14 +1,16 @@
-
 use log::debug;
 use windows::Win32::{
     Foundation::{LPARAM, LRESULT, WPARAM},
     UI::WindowsAndMessaging::{HHOOK, KBDLLHOOKSTRUCT, WH_KEYBOARD_LL},
 };
 
-use crate::{data::key::{Key, KeyAction, KeyPress, Keybind, WINDOWS_KEY_CODE}, win_api::hook::{call_next_hook, set_hook}};
+use crate::data::action::Execute;
 use crate::state::KEYBINDS;
 use crate::state::PRESSED_KEYS;
-use crate::data::action::Execute;
+use crate::{
+    data::key::{Key, KeyAction, KeyPress, Keybind, WINDOWS_KEY_CODE},
+    win_api::hook::{call_next_hook, set_hook},
+};
 
 pub fn init_hook() -> HHOOK {
     return set_hook(WH_KEYBOARD_LL, callback);
@@ -51,7 +53,7 @@ pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPAR
             let key_index = &pressed_keys
                 .iter()
                 .position(|k| k == &key_press.key)
-                .unwrap();
+                .expect(&(String::from("Failed to release key ".to_owned() + &key_press.key.name)));
             pressed_keys.remove(*key_index);
         }
     }

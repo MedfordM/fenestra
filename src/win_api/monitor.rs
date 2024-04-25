@@ -8,10 +8,13 @@ use windows::Win32::Graphics::Gdi::{
     MonitorFromWindow, DEVMODEA, DISPLAY_DEVICEA, ENUM_CURRENT_SETTINGS, HDC, HMONITOR,
     MONITORINFO, MONITORINFOEXA, MONITOR_DEFAULTTONEAREST,
 };
+use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
+use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 
 use crate::data::common::direction::ALL_DIRECTIONS;
 use crate::data::monitor::Monitor;
+use crate::win_api::misc::handle_result;
 
 static mut MONITORS: Vec<Monitor> = Vec::new();
 pub fn get_all() -> Vec<Monitor> {
@@ -50,11 +53,13 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             .trim_start_matches(r"\")
             .to_string();
         let device_mode = get_device_mode(&name);
+        let scale = get_scale(hmonitor);
         Monitor {
             hmonitor,
             name,
             info: monitor_info.monitorInfo,
             device_mode,
+            scale,
             workspaces: Vec::new(),
             neighbors: Vec::new(),
         }
@@ -118,6 +123,10 @@ pub fn get_device_mode(device_name: &str) -> DEVMODEA {
         }
         return device_mode;
     };
+}
+
+fn get_scale(hmonitor: HMONITOR) -> DEVICE_SCALE_FACTOR {
+    return handle_result(unsafe { GetScaleFactorForMonitor(hmonitor) });
 }
 
 fn get_neighbors(monitors: Vec<Monitor>) -> Vec<Monitor> {

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
+use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
 use crate::data::common::direction::Direction;
 use crate::data::workspace::Workspace;
@@ -12,6 +13,7 @@ pub struct Monitor {
     pub name: String,
     pub info: MONITORINFO,
     pub device_mode: DEVMODEA,
+    pub scale: DEVICE_SCALE_FACTOR,
     pub workspaces: Vec<Workspace>,
     pub neighbors: Vec<(Direction, String)>,
 }

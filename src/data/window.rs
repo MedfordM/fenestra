@@ -6,7 +6,9 @@ use windows::Win32::UI::WindowsAndMessaging::{SW_SHOWMINIMIZED, WINDOWINFO, WIND
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
-use crate::win_api::window::{get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos};
+use crate::win_api::window::{
+    get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct Window {
@@ -20,6 +22,9 @@ pub struct Window {
     pub info: WINDOWINFO,
     pub placement: WINDOWPLACEMENT,
     pub monitor: Monitor,
+    pub dpi: u32,
+    pub style: i32,
+    pub extended_style: i32,
 }
 
 impl Eq for Window {}
@@ -38,11 +43,11 @@ impl Window {
     pub fn focus(&self) {
         set_foreground_window(self);
     }
-    
+
     pub fn minimize(&self) {
         minimize_window(&self);
     }
-    
+
     pub fn restore(&self) {
         restore_window(&self);
     }
@@ -50,7 +55,9 @@ impl Window {
     pub fn find_nearest_in_direction(&self, direction: &Direction) -> Window {
         let candidate_windows: Vec<Window> = Window::get_all_windows()
             .iter()
-            .filter(|window| window != &self && window.placement.showCmd != SW_SHOWMINIMIZED.0 as u32)
+            .filter(|window| {
+                window != &self && window.placement.showCmd != SW_SHOWMINIMIZED.0 as u32
+            })
             .map(|window| Window {
                 info: WINDOWINFO {
                     rcWindow: RECT {
@@ -148,8 +155,12 @@ impl Window {
         let current_pos: RECT = self.rect;
         let target_pos: RECT = window.rect;
         // Calculate drop shadow width
+        // let current_delta = 0;
+        // let target_delta = 0;
         let current_delta = self.bounding_rect.left - self.rect.left;
         let target_delta = window.bounding_rect.left - window.rect.left;
+        // let current_delta = self.bounding_rect.top - self.rect.top;
+        // let target_delta = window.bounding_rect.top - window.rect.top;
         window.set_position(current_pos, current_delta - target_delta);
         self.set_position(target_pos, target_delta - current_delta);
     }

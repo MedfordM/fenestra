@@ -13,6 +13,9 @@ use windows::Win32::Graphics::Dwm::{
 };
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
+use windows::Win32::UI::HiDpi::{
+    GetDpiForWindow, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+};
 use windows::Win32::UI::Shell::{
     Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA,
 };
@@ -22,11 +25,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId,
     InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA,
     SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW,
-    CS_OWNDC, CS_VREDRAW, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG,
-    SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MINIMIZE, SW_RESTORE,
-    TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
-    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL, WM_PAINT,
-    WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
+    CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING,
+    MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MINIMIZE,
+    SW_RESTORE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT,
+    WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL,
+    WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -34,6 +37,10 @@ use crate::hooks;
 use crate::state::MONITORS;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 use crate::win_api::monitor::get_monitor_from_window;
+
+pub fn set_dpi_awareness() {
+    let _ = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
+}
 
 pub fn system_tray(hwnd: &HWND) {
     // let tooltip_text = "WindowManager".as_bytes();
@@ -210,8 +217,12 @@ pub fn set_foreground_window(app: &Window) {
     }
 }
 
-pub fn get_style(handle: HWND) -> i32 {
+fn get_style(handle: HWND) -> i32 {
     return get_window_info(handle, GWL_STYLE);
+}
+
+fn get_extended_style(handle: HWND) -> i32 {
+    return get_window_info(handle, GWL_EXSTYLE);
 }
 
 // pub fn set_transparent(hwnd: HWND) {
@@ -239,25 +250,21 @@ pub fn get_all() -> HashSet<Window> {
 }
 
 pub fn get_window(hwnd: HWND) -> Option<Window> {
-    let window_style: u32 = get_style(hwnd) as u32;
-    if window_style & WS_VISIBLE.0 == 0 {
+    let style = get_style(hwnd);
+    let style_u32 = style as u32;
+    let extended_style = get_extended_style(hwnd);
+    if style_u32 & WS_VISIBLE.0 == 0 {
         return None;
     }
 
-    if window_style & WS_OVERLAPPEDWINDOW.0 == 0 {
+    if style_u32 & WS_OVERLAPPEDWINDOW.0 == 0 {
         return None;
     }
 
-    if window_style & WS_SIZEBOX.0 == 0 {
+    if style_u32 & WS_SIZEBOX.0 == 0 {
         return None;
     }
 
-    // if window_style & WS_CAPTION.0 == 0 {
-    //     return None;
-    // }
-    // if window_style & WS_MAXIMIZEBOX.0 == 0 {
-    //     return None;
-    // }
     let title: String = get_window_title(hwnd);
     if title.is_empty() || title.to_lowercase().contains("settings") {
         return None;
@@ -288,6 +295,7 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     let monitor = monitor_result.unwrap().clone();
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     let window_placement: WINDOWPLACEMENT = get_window_placement(hwnd);
+    let dpi = get_dpi(hwnd);
     return Some(Window {
         title,
         hwnd,
@@ -299,19 +307,28 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
         info: window_info,
         placement: window_placement,
         monitor,
+        dpi,
+        style,
+        extended_style,
     });
 }
 
 pub fn set_window_pos(window: &Window, offset: i32) {
+    // let mut dpi_adjusted_window = window.clone();
+    // adjust_window_for_dpi(&mut dpi_adjusted_window, window.dpi);
     let adj_left: i32 = window.rect.left + offset;
     let width: i32 = window.rect.right - adj_left - offset;
     let height: i32 = window.rect.bottom - window.rect.top - offset;
+    // let adj_left: i32 = dpi_adjusted_window.rect.left + offset;
+    // let width: i32 = dpi_adjusted_window.rect.right - adj_left - offset;
+    // let height: i32 = dpi_adjusted_window.rect.bottom - window.rect.top - offset;
 
     handle_result(unsafe {
         SetWindowPos(
             window.hwnd,
             None,
             adj_left,
+            // dpi_adjusted_window.rect.top,
             window.rect.top,
             width,
             height,
@@ -411,3 +428,19 @@ fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
     let info = unsafe { GetWindowLongA(handle, offset) };
     return info;
 }
+
+fn get_dpi(hwnd: HWND) -> u32 {
+    return unsafe { GetDpiForWindow(hwnd) };
+}
+
+// fn adjust_window_for_dpi(window: &mut Window, dpi: u32) {
+//     return handle_result(unsafe {
+//         AdjustWindowRectExForDpi(
+//             &mut window.rect,
+//             WINDOW_STYLE(window.style as u32),
+//             BOOL::from(window.style as u32 & WS_SYSMENU.0 == 0),
+//             WINDOW_EX_STYLE(window.extended_style as u32),
+//             dpi,
+//         )
+//     });
+// }
