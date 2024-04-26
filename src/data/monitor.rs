@@ -1,11 +1,17 @@
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
 use crate::data::common::direction::Direction;
+use crate::data::window::Window;
 use crate::data::workspace::Workspace;
-use crate::win_api::monitor::{get_all, get_monitor};
+use crate::state::MONITORS;
+use crate::win_api::monitor::{
+    get_all, get_monitor, get_monitor_from_window, get_windows_on_monitor,
+};
+use crate::win_api::window::get_foreground_handle;
 
 #[derive(Clone, Default)]
 pub struct Monitor {
@@ -16,6 +22,7 @@ pub struct Monitor {
     pub scale: DEVICE_SCALE_FACTOR,
     pub workspaces: Vec<Workspace>,
     pub neighbors: Vec<(Direction, String)>,
+    // pub focused: bool,
 }
 
 impl PartialEq for Monitor {
@@ -30,6 +37,55 @@ impl Monitor {
     }
     pub fn from(value: HMONITOR) -> Self {
         get_monitor(value)
+    }
+
+    pub fn current_workspace(&self) -> Workspace {
+        return self
+            .workspaces
+            .iter()
+            .find(|workspace| workspace.focused == true)
+            .cloned()
+            .expect("Unable to find current workspace");
+    }
+
+    pub fn get_workspace(&self, id: u32) -> Workspace {
+        return self.workspaces[(id - 1) as usize].clone();
+    }
+
+    pub fn workspace_from_window(&self, window: &Window) -> Option<Workspace> {
+        let search_result = self
+            .workspaces
+            .iter()
+            .find(|workspace| workspace.windows.contains(window))
+            .map(|w| w.to_owned());
+        return search_result;
+    }
+
+    pub fn init_workspaces(hmonitor: HMONITOR) -> Vec<Workspace> {
+        let mut workspaces: Vec<Workspace> = vec![];
+        let default_workspace: Workspace = Workspace {
+            id: 1,
+            focused: true,
+            windows: get_windows_on_monitor(hmonitor),
+        };
+        workspaces.push(default_workspace);
+        for i in 2..10 {
+            let workspace: Workspace = Workspace {
+                id: i,
+                focused: false,
+                windows: HashSet::new(),
+            };
+            workspaces.push(workspace);
+        }
+        return workspaces;
+    }
+
+    pub fn all_windows(&self) -> HashSet<Window> {
+        let mut all_windows: HashSet<Window> = HashSet::new();
+        self.workspaces.iter().for_each(|workspace| {
+            all_windows.extend(workspace.windows.clone());
+        });
+        return all_windows;
     }
 }
 

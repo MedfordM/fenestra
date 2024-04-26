@@ -6,6 +6,7 @@ use windows::Win32::UI::WindowsAndMessaging::{SW_SHOWMINIMIZED, WINDOWINFO, WIND
 
 use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
+use crate::win_api::monitor::get_monitor_from_window;
 use crate::win_api::window::{
     get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos,
 };
@@ -21,7 +22,6 @@ pub struct Window {
     pub border_thickness: u32,
     pub info: WINDOWINFO,
     pub placement: WINDOWPLACEMENT,
-    pub monitor: Monitor,
     pub dpi: u32,
     pub style: i32,
     pub extended_style: i32,
@@ -71,12 +71,15 @@ impl Window {
                 ..window.clone()
             })
             .collect();
-        let monitor_windows: Vec<Window> = candidate_windows
+        let hmonitor = get_monitor_from_window(self.hwnd);
+        let monitor = Monitor::from(hmonitor);
+        let workspace = monitor.current_workspace();
+        let workspace_windows: HashSet<Window> = candidate_windows
             .iter()
-            .filter(|window| window.monitor == self.monitor)
+            .filter(|window| workspace.windows.contains(window))
             .map(|window| window.clone())
             .collect();
-        let monitor_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = monitor_windows
+        let workspace_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = workspace_windows
             .iter()
             .map(|window| {
                 (
@@ -91,6 +94,7 @@ impl Window {
             (
                 String::from(&self.title),
                 RECT {
+                    // TODO: Is this necessary; isn't this done above?
                     left: self.info.rcWindow.left + self.info.cxWindowBorders as i32,
                     top: self.info.rcWindow.top + self.info.cyWindowBorders as i32,
                     right: 0,
@@ -99,13 +103,13 @@ impl Window {
                 Some(self.info.cxWindowBorders),
                 Some(self.info.cyWindowBorders),
             ),
-            &monitor_rects,
+            &workspace_rects,
         );
         if nearest_result.is_none() {
             // TODO: Check only the neighboring monitor in the requested direction
             let other_windows: Vec<Window> = candidate_windows
                 .iter()
-                .filter(|window| window.monitor != self.monitor)
+                .filter(|window| !monitor.all_windows().contains(window))
                 .map(|window| window.clone())
                 .collect();
             let other_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = other_windows

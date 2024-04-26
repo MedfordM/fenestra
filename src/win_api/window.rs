@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::ffi::CString;
-use std::process::exit;
 
 use log::{debug, error};
 use windows::core::PCSTR;
@@ -26,17 +25,16 @@ use windows::Win32::UI::WindowsAndMessaging::{
     InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA,
     SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW,
     CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING,
-    MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MINIMIZE,
-    SW_RESTORE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT,
-    WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_NULL,
-    WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
+    MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SW_MINIMIZE, SW_RESTORE, SW_SHOWMINIMIZED,
+    SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
+    WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
+    WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
+    WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
 use crate::hooks;
-use crate::state::MONITORS;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
-use crate::win_api::monitor::get_monitor_from_window;
 
 pub fn set_dpi_awareness() {
     let _ = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
@@ -195,15 +193,20 @@ pub fn handle_window_events(window_handle: &HWND, hook_ids: &Vec<(String, isize)
     }
 }
 
-pub fn get_foreground_window() -> Window {
+pub fn get_foreground_handle() -> HWND {
     unsafe {
         let result = GetForegroundWindow();
         if result == HWND::default() {
             let error: WIN32_ERROR = GetLastError();
             error!("Error getting foreground window: {:?}", error);
         }
-        return Window::from(result).expect("Unable to get foreground window");
-    }
+        return result;
+    };
+}
+
+pub fn get_foreground_window() -> Window {
+    let foreground_handle = get_foreground_handle();
+    return Window::from(foreground_handle).expect("Unable to get foreground window");
 }
 
 pub fn set_foreground_window(app: &Window) {
@@ -279,20 +282,6 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     );
     let mut bounding_rect: RECT = RECT::default();
     get_ext_attr(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut bounding_rect);
-    let monitor_result = MONITORS
-        .lock()
-        .unwrap()
-        .iter()
-        .find(|monitor| monitor.hmonitor == get_monitor_from_window(hwnd))
-        .map(|monitor| monitor.clone());
-    if monitor_result.is_none() {
-        error!(
-            "Unable to find monitor for window {}, {:?}",
-            &title, &window_info.rcWindow
-        );
-        exit(100);
-    }
-    let monitor = monitor_result.unwrap().clone();
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     let window_placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     let dpi = get_dpi(hwnd);
@@ -306,7 +295,6 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
         bounding_rect,
         info: window_info,
         placement: window_placement,
-        monitor,
         dpi,
         style,
         extended_style,
@@ -323,6 +311,11 @@ pub fn set_window_pos(window: &Window, offset: i32) {
     // let width: i32 = dpi_adjusted_window.rect.right - adj_left - offset;
     // let height: i32 = dpi_adjusted_window.rect.bottom - window.rect.top - offset;
 
+    debug!(
+        "Setting '{}' position to {{X: {}, Y: {}, width: {}, height: {}}}",
+        window.title, adj_left, window.rect.top, width, height
+    );
+
     handle_result(unsafe {
         SetWindowPos(
             window.hwnd,
@@ -332,7 +325,8 @@ pub fn set_window_pos(window: &Window, offset: i32) {
             window.rect.top,
             width,
             height,
-            SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
+            // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
+            SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_DRAWFRAME,
         )
     });
 }

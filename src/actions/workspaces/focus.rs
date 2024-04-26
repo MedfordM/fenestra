@@ -1,11 +1,12 @@
 use std::process::exit;
 use std::str::FromStr;
 
-use log::error;
+use log::{debug, error};
 
 use crate::data::action::Execute;
-use crate::data::workspace::Workspace;
-use crate::state::WORKSPACES;
+use crate::state::MONITORS;
+use crate::win_api::monitor::get_monitor_from_window;
+use crate::win_api::window::get_foreground_handle;
 
 #[derive(Clone, PartialEq)]
 pub struct FocusWorkspace {
@@ -14,16 +15,31 @@ pub struct FocusWorkspace {
 
 impl Execute for FocusWorkspace {
     fn execute(&self) {
-        let mut workspaces = WORKSPACES.lock().unwrap();
-        let mut current_workspace = Workspace::current(&workspaces);
-        let mut target_workspace: Box<Workspace> = Workspace::find_by_id(self.id, &mut workspaces);
+        let mut monitors = MONITORS.lock().unwrap();
+        let window_handle = get_foreground_handle();
+        let monitor_handle = get_monitor_from_window(window_handle);
+        let mut monitor = monitors
+            .iter()
+            .find(|monitor| monitor.hmonitor == monitor_handle)
+            .expect("Unable to get current monitor")
+            .clone();
+        let mut workspaces = monitor.workspaces.clone();
+        let mut current_workspace = monitor.current_workspace();
+        let mut target_workspace = monitor.get_workspace(self.id);
         if current_workspace.id == target_workspace.id {
+            debug!("Skipping request to focus current workspace");
             return;
         }
         current_workspace.unfocus();
         target_workspace.focus();
-        workspaces[(&self.id  - 1) as usize] = target_workspace.clone();
+        workspaces[(&self.id - 1) as usize] = target_workspace.clone();
         workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
+        monitor.workspaces = workspaces;
+        let monitor_index = monitors
+            .iter()
+            .position(|mon| mon.hmonitor == monitor.hmonitor)
+            .expect("Unable to find stateful index of monitor");
+        monitors[monitor_index] = monitor;
     }
 }
 

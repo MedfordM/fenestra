@@ -6,11 +6,9 @@ use windows::Win32::{
     },
 };
 
-use crate::{
-    data::{window::Window, workspace::Workspace},
-    state::WORKSPACES,
-    win_api::hook::set_event_hook,
-};
+use crate::state::MONITORS;
+use crate::win_api::monitor::get_monitor_from_window;
+use crate::{data::window::Window, win_api::hook::set_event_hook};
 
 pub fn init_hook() -> HWINEVENTHOOK {
     return set_event_hook(callback);
@@ -60,11 +58,18 @@ pub unsafe extern "system" fn callback(
 
             // set_transparent(border_hwnd);
 
-            let mut workspaces = WORKSPACES.lock().unwrap();
-            let mut current_workspace = Workspace::current(&workspaces);
-            let old_workspace_result = Workspace::find_by_window(&window, &mut workspaces);
+            let monitor_handle = get_monitor_from_window(window.hwnd);
+            let monitors = &mut MONITORS.lock().unwrap();
+            let mut monitor = monitors
+                .iter()
+                .find(|mon| mon.hmonitor == monitor_handle)
+                .expect("Unable to get stateful monitor")
+                .clone();
+            let mut workspaces = monitor.workspaces.clone();
+            let mut current_workspace = monitor.current_workspace();
+            let old_workspace_result = monitor.workspace_from_window(&window);
             if old_workspace_result.is_some() {
-                let mut old_workspace = old_workspace_result.unwrap();
+                let mut old_workspace = old_workspace_result.unwrap().clone();
                 if old_workspace.id == current_workspace.id {
                     return;
                 }
@@ -74,6 +79,12 @@ pub unsafe extern "system" fn callback(
 
             current_workspace.add_window(&window);
             workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
+            let monitor_index = monitors
+                .iter()
+                .position(|mon| mon.hmonitor == monitor.hmonitor)
+                .expect("Unable to find stateful index of monitor");
+            monitor.workspaces = workspaces;
+            monitors[monitor_index] = monitor;
         }
         _ => (),
     }

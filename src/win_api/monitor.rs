@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::mem;
 
 use log::error;
@@ -14,7 +15,10 @@ use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 
 use crate::data::common::direction::ALL_DIRECTIONS;
 use crate::data::monitor::Monitor;
+use crate::data::window::Window;
 use crate::win_api::misc::handle_result;
+use crate::win_api::window;
+use crate::win_api::window::get_foreground_handle;
 
 static mut MONITORS: Vec<Monitor> = Vec::new();
 pub fn get_all() -> Vec<Monitor> {
@@ -60,7 +64,7 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             info: monitor_info.monitorInfo,
             device_mode,
             scale,
-            workspaces: Vec::new(),
+            workspaces: Monitor::init_workspaces(hmonitor),
             neighbors: Vec::new(),
         }
     }
@@ -73,6 +77,21 @@ pub fn get_monitor_from_window(hwnd: HWND) -> HMONITOR {
     }
     return result;
 }
+
+pub fn get_windows_on_monitor(hmonitor: HMONITOR) -> HashSet<Window> {
+    let all_windows: HashSet<Window> = window::get_all();
+    return all_windows
+        .iter()
+        .filter(|window| get_monitor_from_window(window.hwnd) == hmonitor)
+        .cloned()
+        .collect();
+}
+
+// pub fn get_current() -> Monitor {
+//     let current_window = get_foreground_handle();
+//     let hmonitor = get_monitor_from_window(current_window);
+//     return get_monitor(hmonitor);
+// }
 
 pub fn get_device_mode(device_name: &str) -> DEVMODEA {
     unsafe {
