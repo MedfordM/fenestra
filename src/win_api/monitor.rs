@@ -18,7 +18,6 @@ use crate::data::monitor::Monitor;
 use crate::data::window::Window;
 use crate::win_api::misc::handle_result;
 use crate::win_api::window;
-use crate::win_api::window::get_foreground_handle;
 
 static mut MONITORS: Vec<Monitor> = Vec::new();
 pub fn get_all() -> Vec<Monitor> {

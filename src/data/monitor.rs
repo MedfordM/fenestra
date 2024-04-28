@@ -5,13 +5,10 @@ use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
 use crate::data::common::direction::Direction;
+use crate::data::group::Group;
 use crate::data::window::Window;
 use crate::data::workspace::Workspace;
-use crate::state::MONITORS;
-use crate::win_api::monitor::{
-    get_all, get_monitor, get_monitor_from_window, get_windows_on_monitor,
-};
-use crate::win_api::window::get_foreground_handle;
+use crate::win_api::monitor::{get_all, get_monitor, get_windows_on_monitor};
 
 #[derive(Clone, Default)]
 pub struct Monitor {
@@ -56,7 +53,7 @@ impl Monitor {
         let search_result = self
             .workspaces
             .iter()
-            .find(|workspace| workspace.windows.contains(window))
+            .find(|workspace| workspace.all_windows().contains(window))
             .map(|w| w.to_owned());
         return search_result;
     }
@@ -66,14 +63,22 @@ impl Monitor {
         let default_workspace: Workspace = Workspace {
             id: 1,
             focused: true,
-            windows: get_windows_on_monitor(hmonitor),
+            groups: vec![Group {
+                index: 0,
+                children: Vec::new(),
+                windows: get_windows_on_monitor(hmonitor),
+            }],
         };
         workspaces.push(default_workspace);
         for i in 2..10 {
             let workspace: Workspace = Workspace {
                 id: i,
                 focused: false,
-                windows: HashSet::new(),
+                groups: vec![Group {
+                    index: 0,
+                    children: Vec::new(),
+                    windows: HashSet::new(),
+                }],
             };
             workspaces.push(workspace);
         }
@@ -83,7 +88,7 @@ impl Monitor {
     pub fn all_windows(&self) -> HashSet<Window> {
         let mut all_windows: HashSet<Window> = HashSet::new();
         self.workspaces.iter().for_each(|workspace| {
-            all_windows.extend(workspace.windows.clone());
+            all_windows.extend(workspace.all_windows().clone());
         });
         return all_windows;
     }

@@ -332,7 +332,8 @@ pub fn set_window_pos(window: &Window, offset: i32) {
 }
 
 pub fn minimize_window(window: &Window) {
-    let result = unsafe { ShowWindow(window.hwnd, SW_MINIMIZE) };
+    // TODO: Focus the nearest window here
+    let result = unsafe { ShowWindow(window.hwnd, SW_SHOWMINNOACTIVE) };
     if !result.as_bool() {
         error!("Unable to minimize window {}", window.title);
     } else {

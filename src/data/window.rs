@@ -76,7 +76,7 @@ impl Window {
         let workspace = monitor.current_workspace();
         let workspace_windows: HashSet<Window> = candidate_windows
             .iter()
-            .filter(|window| workspace.windows.contains(window))
+            .filter(|window| workspace.all_windows().contains(window))
             .map(|window| window.clone())
             .collect();
         let workspace_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = workspace_windows

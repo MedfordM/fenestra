@@ -32,8 +32,10 @@ impl Execute for FocusWorkspace {
         }
         current_workspace.unfocus();
         target_workspace.focus();
-        workspaces[(&self.id - 1) as usize] = target_workspace.clone();
-        workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
+        let current_index = (&current_workspace.id - 1) as usize;
+        let target_index = (&target_workspace.id - 1) as usize;
+        workspaces[current_index] = current_workspace.clone();
+        workspaces[target_index] = target_workspace.clone();
         monitor.workspaces = workspaces;
         let monitor_index = monitors
             .iter()
