@@ -13,7 +13,7 @@ use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 
-use crate::data::common::direction::ALL_DIRECTIONS;
+use crate::data::common::direction::{Direction, ALL_DIRECTIONS};
 use crate::data::monitor::Monitor;
 use crate::data::window::Window;
 use crate::win_api::misc::handle_result;
@@ -63,7 +63,7 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             info: monitor_info.monitorInfo,
             device_mode,
             scale,
-            workspaces: Monitor::init_workspaces(hmonitor),
+            workspaces: Monitor::init_workspaces(hmonitor, monitor_info.monitorInfo.rcWork),
             neighbors: Vec::new(),
         }
     }
@@ -148,27 +148,27 @@ fn get_scale(hmonitor: HMONITOR) -> DEVICE_SCALE_FACTOR {
 }
 
 fn get_neighbors(monitors: Vec<Monitor>) -> Vec<Monitor> {
-    // let min_width: i32 = MONITORS
-    //     .iter()
-    //     .map(|monitor| {
-    //         let origin: i32 = monitor.position.left.abs();
-    //         let end: i32 = monitor.position.right.abs();
-    //         return (end - origin).abs();
-    //     })
-    //     .min()
-    //     .unwrap();
-    // let min_height: i32 = MONITORS
-    //     .iter()
-    //     .map(|monitor| {
-    //         let origin: i32 = monitor.position.top.abs();
-    //         let end: i32 = monitor.position.bottom.abs();
-    //         return (end - origin).abs();
-    //     })
-    //     .min()
-    //     .unwrap();
+    let min_width: i32 = monitors
+        .iter()
+        .map(|monitor| {
+            let origin: i32 = monitor.info.rcMonitor.left.abs();
+            let end: i32 = monitor.info.rcMonitor.right.abs();
+            return (end - origin).abs();
+        })
+        .max()
+        .unwrap();
+    let min_height: i32 = monitors
+        .iter()
+        .map(|monitor| {
+            let origin: i32 = monitor.info.rcMonitor.top.abs();
+            let end: i32 = monitor.info.rcMonitor.bottom.abs();
+            return (end - origin).abs();
+        })
+        .max()
+        .unwrap();
     return monitors
         .iter()
-        .map(|mon| {
+        .map(|mon| unsafe {
             let mut monitor = mon.clone();
             let other_monitors: Vec<Monitor> = monitors
                 .iter()
@@ -177,27 +177,64 @@ fn get_neighbors(monitors: Vec<Monitor>) -> Vec<Monitor> {
                 .collect();
             let other_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = other_monitors
                 .iter()
-                .map(|m| (String::from(&m.name), m.info.rcWork, None, None))
+                .map(|m| {
+                    (
+                        String::from(&m.name),
+                        RECT {
+                            left: m.device_mode.Anonymous1.Anonymous2.dmPosition.x,
+                            top: m.device_mode.Anonymous1.Anonymous2.dmPosition.y,
+                            bottom: 0,
+                            right: 0,
+                        },
+                        None,
+                        None,
+                    )
+                })
                 .collect();
             for direction in &ALL_DIRECTIONS {
-                // let max_delta: i32 = match direction {
-                //     Direction::LEFT | Direction::RIGHT => min_width,
-                //     Direction::UP | Direction::DOWN => min_height,
-                // };
+                let max_delta: i32 = match direction {
+                    Direction::LEFT | Direction::RIGHT => min_width,
+                    Direction::UP | Direction::DOWN => min_height,
+                };
+                let monitor_rect = match direction {
+                    Direction::LEFT | Direction::RIGHT => RECT {
+                        left: monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x,
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                    },
+                    Direction::UP | Direction::DOWN => RECT {
+                        left: 0,
+                        top: monitor.device_mode.Anonymous1.Anonymous2.dmPosition.y,
+                        bottom: 0,
+                        right: 0,
+                    },
+                };
                 let nearest_result: Option<(String, i32)> = direction.find_nearest(
-                    (String::from(&monitor.name), monitor.info.rcWork, None, None),
+                    (String::from(&monitor.name), monitor_rect, None, None),
                     &other_rects,
                 );
                 if nearest_result.is_none() {
                     continue;
                 }
-                let (nearest_name, _): (String, _) = nearest_result.unwrap();
+                let (nearest_name, nearest_distance): (String, _) = nearest_result.unwrap();
+                if nearest_distance < max_delta {
+                    continue;
+                }
                 let nearest_mon = other_monitors
                     .iter()
                     .find(|m| m.name.contains(&nearest_name))
                     .map(|m| m.clone());
                 if nearest_mon.is_some() {
-                    let name = nearest_mon.unwrap().name.replace("\0", "");
+                    let nearest_monitor = nearest_mon.unwrap();
+                    let name = nearest_monitor.name;
+                    if nearest_distance > max_delta {
+                        continue;
+                    }
+                    // debug!(
+                    //     "Found neighbor for '{}': '{}'({}) distance {}",
+                    //     monitor.name, name, direction, nearest_distance
+                    // );
                     monitor.neighbors.push((direction.clone(), name));
                 }
             }

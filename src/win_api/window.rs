@@ -25,7 +25,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA,
     SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW,
     CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING,
-    MSG, SWP_DRAWFRAME, SWP_NOACTIVATE, SWP_NOCOPYBITS, SW_MINIMIZE, SW_RESTORE, SW_SHOWMINIMIZED,
+    MSG, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE,
     SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
     WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
     WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
@@ -326,7 +326,7 @@ pub fn set_window_pos(window: &Window, offset: i32) {
             width,
             height,
             // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
-            SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_DRAWFRAME,
+            SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW,
         )
     });
 }
@@ -338,6 +338,15 @@ pub fn minimize_window(window: &Window) {
         error!("Unable to minimize window {}", window.title);
     } else {
         debug!("Minimized {}", window.title);
+    }
+}
+
+pub fn maximize_window(window: &Window) {
+    let result = unsafe { ShowWindow(window.hwnd, SW_MAXIMIZE) };
+    if !result.as_bool() {
+        error!("Unable to maximize window {}", window.title);
+    } else {
+        debug!("Maximized {}", window.title);
     }
 }
 

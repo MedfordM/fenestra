@@ -8,7 +8,8 @@ use crate::data::common::direction::Direction;
 use crate::data::monitor::Monitor;
 use crate::win_api::monitor::get_monitor_from_window;
 use crate::win_api::window::{
-    get_all, get_window, minimize_window, restore_window, set_foreground_window, set_window_pos,
+    get_all, get_window, maximize_window, minimize_window, restore_window, set_foreground_window,
+    set_window_pos,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -48,6 +49,10 @@ impl Window {
         minimize_window(&self);
     }
 
+    pub fn maximize(&self) {
+        maximize_window(&self);
+    }
+
     pub fn restore(&self) {
         restore_window(&self);
     }
@@ -72,7 +77,7 @@ impl Window {
             })
             .collect();
         let hmonitor = get_monitor_from_window(self.hwnd);
-        let monitor = Monitor::from(hmonitor);
+        let mut monitor = Monitor::from(hmonitor);
         let workspace = monitor.current_workspace();
         let workspace_windows: HashSet<Window> = candidate_windows
             .iter()
@@ -165,18 +170,18 @@ impl Window {
         let target_delta = window.bounding_rect.left - window.rect.left;
         // let current_delta = self.bounding_rect.top - self.rect.top;
         // let target_delta = window.bounding_rect.top - window.rect.top;
-        window.set_position(current_pos, current_delta - target_delta);
-        self.set_position(target_pos, target_delta - current_delta);
+        window.set_position(current_pos, Some(current_delta - target_delta));
+        self.set_position(target_pos, Some(target_delta - current_delta));
     }
 
     pub fn from(hwnd: HWND) -> Option<Self> {
         return get_window(hwnd);
     }
 
-    fn set_position(&mut self, position: RECT, offset: i32) {
+    pub fn set_position(&mut self, position: RECT, offset: Option<i32>) {
         //debug!("Old window position for {}: {:?} with offset {}", self.title, &self.rect, offset);
         self.rect = position;
-        set_window_pos(self, offset);
+        set_window_pos(self, offset.unwrap_or(0));
     }
 
     // fn set_placement(&mut self, placement: &WINDOWPLACEMENT) {
@@ -187,6 +192,9 @@ impl Window {
 
 impl PartialEq for Window {
     fn eq(&self, other: &Self) -> bool {
-        self.hwnd == other.hwnd || self.title == other.title
+        self.hwnd == other.hwnd
+            || self.title == other.title
+            || self.thread_id == other.thread_id
+            || self.process_id == other.process_id
     }
 }

@@ -1,5 +1,6 @@
 use std::process::exit;
 use std::str::FromStr;
+use std::sync::Mutex;
 
 use log::{debug, error};
 
@@ -18,30 +19,21 @@ impl Execute for FocusWorkspace {
         let mut monitors = MONITORS.lock().unwrap();
         let window_handle = get_foreground_handle();
         let monitor_handle = get_monitor_from_window(window_handle);
-        let mut monitor = monitors
-            .iter()
+        let monitor = monitors
+            .iter_mut()
             .find(|monitor| monitor.hmonitor == monitor_handle)
-            .expect("Unable to get current monitor")
-            .clone();
-        let mut workspaces = monitor.workspaces.clone();
-        let mut current_workspace = monitor.current_workspace();
-        let mut target_workspace = monitor.get_workspace(self.id);
-        if current_workspace.id == target_workspace.id {
-            debug!("Skipping request to focus current workspace");
-            return;
-        }
-        current_workspace.unfocus();
-        target_workspace.focus();
-        let current_index = (&current_workspace.id - 1) as usize;
-        let target_index = (&target_workspace.id - 1) as usize;
-        workspaces[current_index] = current_workspace.clone();
-        workspaces[target_index] = target_workspace.clone();
-        monitor.workspaces = workspaces;
-        let monitor_index = monitors
-            .iter()
-            .position(|mon| mon.hmonitor == monitor.hmonitor)
-            .expect("Unable to find stateful index of monitor");
-        monitors[monitor_index] = monitor;
+            .expect("Unable to get current monitor");
+        monitor.focus_workspace(self.id);
+        // let current_index = (&current_workspace.id - 1) as usize;
+        // let target_index = (&target_workspace.id - 1) as usize;
+        // workspaces[current_index] = current_workspace.clone();
+        // workspaces[target_index] = target_workspace.clone();
+        // monitor.workspaces = workspaces;
+        // let monitor_index = monitors
+        //     .iter()
+        //     .position(|mon| mon.hmonitor == monitor.hmonitor)
+        //     .expect("Unable to find stateful index of monitor");
+        // monitors[monitor_index] = monitor;
     }
 }
 

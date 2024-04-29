@@ -1,3 +1,4 @@
+use windows::Win32::UI::WindowsAndMessaging::EVENT_SYSTEM_MOVESIZEEND;
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -58,33 +59,48 @@ pub unsafe extern "system" fn callback(
 
             // set_transparent(border_hwnd);
 
+            // debug!("Foreground window was updated: {}", window.title);
+
             let monitor_handle = get_monitor_from_window(window.hwnd);
             let monitors = &mut MONITORS.lock().unwrap();
-            let mut monitor = monitors
-                .iter()
-                .find(|mon| mon.hmonitor == monitor_handle)
-                .expect("Unable to get stateful monitor")
-                .clone();
-            let mut workspaces = monitor.workspaces.clone();
-            let mut current_workspace = monitor.current_workspace();
-            let old_workspace_result = monitor.workspace_from_window(&window);
-            if old_workspace_result.is_some() {
-                let mut old_workspace = old_workspace_result.unwrap().clone();
-                if old_workspace.id == current_workspace.id {
-                    return;
-                }
-                old_workspace.remove_window(&window);
-                workspaces[(&old_workspace.id - 1) as usize] = old_workspace.clone();
-            }
+            monitors.iter_mut().for_each(|monitor| {
+                /*
+                   On all monitors, remove any stale references to the current window
 
-            current_workspace.add_window(&window);
-            workspaces[(current_workspace.id - 1) as usize] = current_workspace.clone();
-            let monitor_index = monitors
-                .iter()
-                .position(|mon| mon.hmonitor == monitor.hmonitor)
-                .expect("Unable to find stateful index of monitor");
-            monitor.workspaces = workspaces;
-            monitors[monitor_index] = monitor;
+                   For the monitor containing the currently focused window,
+                   remove the (potentially stale) window state from the owning
+                   workspace, then add it to the current workspace.
+                */
+                monitor.remove_window(&window);
+                if monitor.hmonitor == monitor_handle {
+                    monitor.add_window(&window);
+                }
+            });
+        }
+        EVENT_SYSTEM_MOVESIZEEND => {
+            let window_result = Window::from(hwnd);
+            if window_result.is_none() {
+                return;
+            }
+            let window = window_result.unwrap();
+            let monitor_handle = get_monitor_from_window(window.hwnd);
+            let monitors = &mut MONITORS.lock().unwrap();
+            monitors.iter_mut().for_each(|monitor| {
+                if monitor.hmonitor == monitor_handle {
+                    let current_workspace = monitor.current_workspace();
+                    if !current_workspace.contains_window(&window) {
+                        current_workspace.add_window(&window);
+                    }
+                    current_workspace.arrange_windows();
+                } else if monitor.contains_window(&window) {
+                    monitor.remove_window(&window);
+                    monitor.current_workspace().arrange_windows();
+                }
+                // let all_windows = monitor.all_windows();
+                // let window_titles: Vec<String> =
+                //     all_windows.iter().map(|w| w.title.clone()).collect();
+                // debug!("Monitor contains windows {:?}", window_titles);
+            });
         }
         _ => (),
     }

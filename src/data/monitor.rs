@@ -1,6 +1,9 @@
+use log::debug;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use windows::Win32::Foundation::RECT;
 
+use crate::data::common::axis::Axis::VERTICAL;
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
@@ -36,37 +39,59 @@ impl Monitor {
         get_monitor(value)
     }
 
-    pub fn current_workspace(&self) -> Workspace {
+    pub fn current_workspace(&mut self) -> &mut Workspace {
         return self
             .workspaces
-            .iter()
+            .iter_mut()
             .find(|workspace| workspace.focused == true)
-            .cloned()
             .expect("Unable to find current workspace");
     }
 
-    pub fn get_workspace(&self, id: u32) -> Workspace {
-        return self.workspaces[(id - 1) as usize].clone();
+    pub fn get_workspace(&mut self, id: u32) -> &mut Workspace {
+        return &mut self.workspaces[(id - 1) as usize];
     }
 
-    pub fn workspace_from_window(&self, window: &Window) -> Option<Workspace> {
+    pub fn focus_workspace(&mut self, id: u32) {
+        let current_workspace = self.current_workspace();
+        if id == current_workspace.id {
+            debug!("Skipping request to focus the current workspace");
+            return;
+        }
+        current_workspace.unfocus();
+        self.workspaces[(id - 1) as usize].focus();
+    }
+
+    pub fn add_window_to_workspace(&mut self, id: u32, window: &Window) {
+        let current_workspace = self.current_workspace();
+        if id == current_workspace.id {
+            return;
+        }
+        current_workspace.remove_window(window);
+        self.workspaces[(id - 1) as usize].add_window(window);
+    }
+
+    pub fn workspace_from_window(&mut self, window: &Window) -> Option<&mut Workspace> {
+        if !self.contains_window(window) {
+            return None;
+        }
         let search_result = self
             .workspaces
-            .iter()
-            .find(|workspace| workspace.all_windows().contains(window))
-            .map(|w| w.to_owned());
+            .iter_mut()
+            .find(|workspace| workspace.all_windows().contains(window));
         return search_result;
     }
 
-    pub fn init_workspaces(hmonitor: HMONITOR) -> Vec<Workspace> {
+    pub fn init_workspaces(hmonitor: HMONITOR, rect: RECT) -> Vec<Workspace> {
         let mut workspaces: Vec<Workspace> = vec![];
         let default_workspace: Workspace = Workspace {
             id: 1,
             focused: true,
+            rect,
+            split_axis: VERTICAL,
             groups: vec![Group {
                 index: 0,
-                children: Vec::new(),
                 windows: get_windows_on_monitor(hmonitor),
+                split_axis: VERTICAL,
             }],
         };
         workspaces.push(default_workspace);
@@ -74,15 +99,34 @@ impl Monitor {
             let workspace: Workspace = Workspace {
                 id: i,
                 focused: false,
+                rect,
+                split_axis: VERTICAL,
                 groups: vec![Group {
                     index: 0,
-                    children: Vec::new(),
                     windows: HashSet::new(),
+                    split_axis: VERTICAL,
                 }],
             };
             workspaces.push(workspace);
         }
         return workspaces;
+    }
+
+    pub fn contains_window(&self, window: &Window) -> bool {
+        return self.all_windows().contains(window);
+    }
+
+    pub fn add_window(&mut self, window: &Window) -> bool {
+        let current_workspace = self.current_workspace();
+        return current_workspace.add_window(window);
+    }
+
+    pub fn remove_window(&mut self, window: &Window) -> bool {
+        if !self.contains_window(window) {
+            return false;
+        }
+        let workspace = self.current_workspace();
+        return workspace.remove_window(window);
     }
 
     pub fn all_windows(&self) -> HashSet<Window> {
