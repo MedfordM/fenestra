@@ -1,10 +1,7 @@
 use std::str::FromStr;
 
-use log::debug;
-
 use crate::data::action::Execute;
 use crate::data::common::direction::Direction;
-use crate::data::window::Window;
 use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
@@ -14,14 +11,8 @@ pub struct MoveWindow {
 
 impl Execute for MoveWindow {
     fn execute(&self) {
-        let mut current: Window = get_foreground_window();
-        let target: Window = current.find_nearest_in_direction(&self.direction);
-        if target != current {
-            debug!("Swapping window {} with {}", current.title, target.title);
-            current.swap_windows(target);
-        } else {
-            debug!("Moving window {} {}", current.title, &self.direction);
-        }
+        let mut current_window = get_foreground_window();
+        current_window.move_in_direction(&self.direction);
     }
 }
 

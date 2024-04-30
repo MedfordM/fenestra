@@ -1,5 +1,5 @@
 use log::debug;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use windows::Win32::Foundation::RECT;
 
@@ -7,11 +7,11 @@ use crate::data::common::axis::Axis::VERTICAL;
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
-use crate::data::common::direction::Direction;
+use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::group::Group;
 use crate::data::window::Window;
 use crate::data::workspace::Workspace;
-use crate::win_api::monitor::{get_all, get_monitor, get_windows_on_monitor};
+use crate::win_api::monitor::{get_monitor, get_windows_on_monitor};
 
 #[derive(Clone, Default)]
 pub struct Monitor {
@@ -21,8 +21,7 @@ pub struct Monitor {
     pub device_mode: DEVMODEA,
     pub scale: DEVICE_SCALE_FACTOR,
     pub workspaces: Vec<Workspace>,
-    pub neighbors: Vec<(Direction, String)>,
-    // pub focused: bool,
+    pub neighbors: HashMap<Direction, String>,
 }
 
 impl PartialEq for Monitor {
@@ -32,9 +31,6 @@ impl PartialEq for Monitor {
 }
 
 impl Monitor {
-    pub fn get_all_monitors() -> Vec<Monitor> {
-        return get_all();
-    }
     pub fn from(value: HMONITOR) -> Self {
         get_monitor(value)
     }
@@ -135,6 +131,34 @@ impl Monitor {
             all_windows.extend(workspace.all_windows().clone());
         });
         return all_windows;
+    }
+
+    pub fn create_nearest_candidate(&self, direction: &Direction) -> DirectionCandidate<Monitor> {
+        let monitor_rect = match direction {
+            Direction::LEFT | Direction::RIGHT => RECT {
+                left: unsafe { self.device_mode.Anonymous1.Anonymous2 }
+                    .dmPosition
+                    .x,
+                top: 0,
+                bottom: 0,
+                right: 0,
+            },
+            Direction::UP | Direction::DOWN => RECT {
+                left: 0,
+                top: unsafe { self.device_mode.Anonymous1.Anonymous2 }
+                    .dmPosition
+                    .y,
+                bottom: 0,
+                right: 0,
+            },
+        };
+        DirectionCandidate {
+            object: self,
+            name: String::from(&self.name),
+            rect: monitor_rect,
+            offset_x: None,
+            offset_y: None,
+        }
     }
 }
 

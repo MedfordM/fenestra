@@ -1,8 +1,7 @@
 use std::process::exit;
 use std::str::FromStr;
-use std::sync::Mutex;
 
-use log::{debug, error};
+use log::error;
 
 use crate::data::action::Execute;
 use crate::state::MONITORS;
@@ -16,7 +15,7 @@ pub struct FocusWorkspace {
 
 impl Execute for FocusWorkspace {
     fn execute(&self) {
-        let mut monitors = MONITORS.lock().unwrap();
+        let mut monitors = MONITORS.write().unwrap();
         let window_handle = get_foreground_handle();
         let monitor_handle = get_monitor_from_window(window_handle);
         let monitor = monitors

@@ -56,6 +56,7 @@ impl Group {
         }
         self.windows = HashSet::from_iter(windows);
     }
+
     pub fn contains_window(&self, window: &Window) -> bool {
         self.windows.contains(window)
     }

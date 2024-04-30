@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::mem;
 
 use log::error;
@@ -16,11 +16,11 @@ use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 use crate::data::common::direction::{Direction, ALL_DIRECTIONS};
 use crate::data::monitor::Monitor;
 use crate::data::window::Window;
+use crate::state::MONITORS;
 use crate::win_api::misc::handle_result;
 use crate::win_api::window;
 
-static mut MONITORS: Vec<Monitor> = Vec::new();
-pub fn get_all() -> Vec<Monitor> {
+pub fn get_all() {
     extern "system" fn enum_displays_callback(
         hmonitor: HMONITOR,
         _hdc: HDC,
@@ -28,16 +28,14 @@ pub fn get_all() -> Vec<Monitor> {
         _lparam: LPARAM,
     ) -> BOOL {
         let monitor: Monitor = Monitor::from(hmonitor);
-        unsafe {
-            MONITORS.push(monitor);
-        }
+        MONITORS.write().unwrap().push(monitor);
         return BOOL::from(true);
     }
     let result = unsafe { EnumDisplayMonitors(None, None, Some(enum_displays_callback), None) };
     if !result.as_bool() {
         error!("Unable to enumerate displays");
     }
-    return unsafe { get_neighbors(MONITORS.clone()) };
+    assign_neighbors();
 }
 
 pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
@@ -64,7 +62,7 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             device_mode,
             scale,
             workspaces: Monitor::init_workspaces(hmonitor, monitor_info.monitorInfo.rcWork),
-            neighbors: Vec::new(),
+            neighbors: HashMap::new(),
         }
     }
 }
@@ -147,8 +145,11 @@ fn get_scale(hmonitor: HMONITOR) -> DEVICE_SCALE_FACTOR {
     return handle_result(unsafe { GetScaleFactorForMonitor(hmonitor) });
 }
 
-fn get_neighbors(monitors: Vec<Monitor>) -> Vec<Monitor> {
-    let min_width: i32 = monitors
+fn assign_neighbors() {
+    let mons = MONITORS.read().unwrap().clone();
+    let min_width: i32 = MONITORS
+        .read()
+        .unwrap()
         .iter()
         .map(|monitor| {
             let origin: i32 = monitor.info.rcMonitor.left.abs();
@@ -157,7 +158,9 @@ fn get_neighbors(monitors: Vec<Monitor>) -> Vec<Monitor> {
         })
         .max()
         .unwrap();
-    let min_height: i32 = monitors
+    let min_height: i32 = MONITORS
+        .read()
+        .unwrap()
         .iter()
         .map(|monitor| {
             let origin: i32 = monitor.info.rcMonitor.top.abs();
@@ -166,79 +169,38 @@ fn get_neighbors(monitors: Vec<Monitor>) -> Vec<Monitor> {
         })
         .max()
         .unwrap();
-    return monitors
-        .iter()
-        .map(|mon| unsafe {
-            let mut monitor = mon.clone();
-            let other_monitors: Vec<Monitor> = monitors
+    for monitor in MONITORS.write().unwrap().iter_mut() {
+        let other_monitors: Vec<Monitor> =
+            mons.iter().filter(|m| !m.eq(&monitor)).cloned().collect();
+        for direction in &ALL_DIRECTIONS {
+            let candidates = other_monitors
                 .iter()
-                .filter(|m| !m.eq(&mon))
-                .map(|m| m.clone())
+                .map(|m| m.create_nearest_candidate(&direction))
                 .collect();
-            let other_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = other_monitors
-                .iter()
-                .map(|m| {
-                    (
-                        String::from(&m.name),
-                        RECT {
-                            left: m.device_mode.Anonymous1.Anonymous2.dmPosition.x,
-                            top: m.device_mode.Anonymous1.Anonymous2.dmPosition.y,
-                            bottom: 0,
-                            right: 0,
-                        },
-                        None,
-                        None,
-                    )
-                })
-                .collect();
-            for direction in &ALL_DIRECTIONS {
-                let max_delta: i32 = match direction {
-                    Direction::LEFT | Direction::RIGHT => min_width,
-                    Direction::UP | Direction::DOWN => min_height,
-                };
-                let monitor_rect = match direction {
-                    Direction::LEFT | Direction::RIGHT => RECT {
-                        left: monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x,
-                        top: 0,
-                        bottom: 0,
-                        right: 0,
-                    },
-                    Direction::UP | Direction::DOWN => RECT {
-                        left: 0,
-                        top: monitor.device_mode.Anonymous1.Anonymous2.dmPosition.y,
-                        bottom: 0,
-                        right: 0,
-                    },
-                };
-                let nearest_result: Option<(String, i32)> = direction.find_nearest(
-                    (String::from(&monitor.name), monitor_rect, None, None),
-                    &other_rects,
-                );
-                if nearest_result.is_none() {
-                    continue;
-                }
-                let (nearest_name, nearest_distance): (String, _) = nearest_result.unwrap();
-                if nearest_distance < max_delta {
-                    continue;
-                }
-                let nearest_mon = other_monitors
-                    .iter()
-                    .find(|m| m.name.contains(&nearest_name))
-                    .map(|m| m.clone());
-                if nearest_mon.is_some() {
-                    let nearest_monitor = nearest_mon.unwrap();
-                    let name = nearest_monitor.name;
-                    if nearest_distance > max_delta {
-                        continue;
-                    }
-                    // debug!(
-                    //     "Found neighbor for '{}': '{}'({}) distance {}",
-                    //     monitor.name, name, direction, nearest_distance
-                    // );
-                    monitor.neighbors.push((direction.clone(), name));
-                }
+            let max_delta: i32 = match direction {
+                Direction::LEFT | Direction::RIGHT => min_width,
+                Direction::UP | Direction::DOWN => min_height,
+            };
+            let nearest_result =
+                direction.find_nearest(&monitor.create_nearest_candidate(&direction), &candidates);
+            if nearest_result.is_none() {
+                continue;
             }
-            return monitor.clone();
-        })
-        .collect();
+            let nearest = nearest_result.unwrap();
+            if nearest.distance < max_delta {
+                continue;
+            }
+            let nearest_mon = other_monitors
+                .iter()
+                .find(|m| m.eq(&nearest.object))
+                .expect("No such monitor");
+            // debug!(
+            //     "Found neighbor for '{}': '{}'({}) distance {}",
+            //     monitor.name, name, direction, nearest_distance
+            // );
+            monitor
+                .neighbors
+                .insert(direction.clone(), String::from(&nearest_mon.name));
+        }
+    }
 }

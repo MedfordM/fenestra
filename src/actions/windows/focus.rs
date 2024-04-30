@@ -11,9 +11,12 @@ pub struct FocusWindow {
 
 impl Execute for FocusWindow {
     fn execute(&self) {
-        let current = get_foreground_window();
-        let target = current.find_nearest_in_direction(&self.direction);
-        target.focus();
+        let mut current_window = get_foreground_window();
+        let nearest_result = current_window.find_nearest_in_direction(&self.direction);
+        if nearest_result.is_some() {
+            let target_window = nearest_result.unwrap();
+            target_window.focus();
+        }
     }
 }
 

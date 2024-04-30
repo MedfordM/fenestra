@@ -7,6 +7,7 @@ use log::debug;
 use windows::Win32::Foundation::RECT;
 
 use crate::data::window::Window;
+use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone)]
 pub struct Workspace {
@@ -82,7 +83,7 @@ impl Workspace {
         let group = group_result.unwrap();
         let result = group.remove_window(window);
         if result {
-            debug!("Removed '{}' from workspace {}", window.title, self.id);
+            // debug!("Removed '{}' from workspace {}", window.title, self.id);
         }
         return result;
     }
@@ -93,7 +94,7 @@ impl Workspace {
         let result = target_group.add_window(window);
         if result {
             groups.push(target_group);
-            debug!("Added '{}' to workspace {}", &window.title, &self.id);
+            // debug!("Added '{}' to workspace {}", &window.title, &self.id);
         }
         return result;
     }
@@ -103,6 +104,16 @@ impl Workspace {
             .groups
             .iter_mut()
             .find(|group| group.contains_window(window));
+    }
+
+    pub fn current_group<'a, 'b>(&'a mut self) -> &'b mut Group
+    where
+        'a: 'b,
+    {
+        let current_window = get_foreground_window();
+        return self
+            .group_from_window(&current_window)
+            .expect("Current window is not located on this workspace");
     }
 }
 

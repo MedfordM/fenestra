@@ -1,11 +1,11 @@
+use log::debug;
 use std::collections::HashSet;
 
-use log::debug;
 use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::UI::WindowsAndMessaging::{SW_SHOWMINIMIZED, WINDOWINFO, WINDOWPLACEMENT};
+use windows::Win32::UI::WindowsAndMessaging::{WINDOWINFO, WINDOWPLACEMENT};
 
-use crate::data::common::direction::Direction;
-use crate::data::monitor::Monitor;
+use crate::data::common::direction::{Direction, DirectionCandidate, DirectionResult};
+use crate::state::MONITORS;
 use crate::win_api::monitor::get_monitor_from_window;
 use crate::win_api::window::{
     get_all, get_window, maximize_window, minimize_window, restore_window, set_foreground_window,
@@ -57,110 +57,101 @@ impl Window {
         restore_window(&self);
     }
 
-    pub fn find_nearest_in_direction(&self, direction: &Direction) -> Window {
-        let candidate_windows: Vec<Window> = Window::get_all_windows()
-            .iter()
-            .filter(|window| {
-                window != &self && window.placement.showCmd != SW_SHOWMINIMIZED.0 as u32
-            })
-            .map(|window| Window {
-                info: WINDOWINFO {
-                    rcWindow: RECT {
-                        left: window.info.rcWindow.left + window.info.cxWindowBorders as i32,
-                        top: window.info.rcWindow.top + window.info.cyWindowBorders as i32,
-                        right: window.info.rcWindow.right,
-                        bottom: window.info.rcWindow.bottom,
-                    },
-                    ..window.info
-                },
-                ..window.clone()
-            })
-            .collect();
-        let hmonitor = get_monitor_from_window(self.hwnd);
-        let mut monitor = Monitor::from(hmonitor);
-        let workspace = monitor.current_workspace();
-        let workspace_windows: HashSet<Window> = candidate_windows
-            .iter()
-            .filter(|window| workspace.all_windows().contains(window))
-            .map(|window| window.clone())
-            .collect();
-        let workspace_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = workspace_windows
-            .iter()
-            .map(|window| {
-                (
-                    String::from(&window.title),
-                    window.info.rcWindow,
-                    Some(window.info.cxWindowBorders),
-                    Some(window.info.cyWindowBorders),
-                )
-            })
-            .collect();
-        let mut nearest_result: Option<(String, i32)> = direction.find_nearest(
-            (
-                String::from(&self.title),
-                RECT {
-                    // TODO: Is this necessary; isn't this done above?
-                    left: self.info.rcWindow.left + self.info.cxWindowBorders as i32,
-                    top: self.info.rcWindow.top + self.info.cyWindowBorders as i32,
-                    right: 0,
-                    bottom: 0,
-                },
-                Some(self.info.cxWindowBorders),
-                Some(self.info.cyWindowBorders),
-            ),
-            &workspace_rects,
-        );
-        if nearest_result.is_none() {
-            // TODO: Check only the neighboring monitor in the requested direction
-            let other_windows: Vec<Window> = candidate_windows
-                .iter()
-                .filter(|window| !monitor.all_windows().contains(window))
-                .map(|window| window.clone())
-                .collect();
-            let other_rects: Vec<(String, RECT, Option<u32>, Option<u32>)> = other_windows
-                .iter()
-                .map(|window| {
-                    (
-                        String::from(&window.title),
-                        window.info.rcWindow,
-                        None,
-                        None,
-                    )
-                })
-                .collect();
-            nearest_result = direction.find_nearest(
-                (
-                    self.title.clone(),
-                    RECT {
-                        left: self.info.rcWindow.left + self.info.cxWindowBorders as i32,
-                        top: self.info.rcWindow.top + self.info.cyWindowBorders as i32,
-                        right: 0,
-                        bottom: 0,
-                    },
-                    Some(self.info.cxWindowBorders),
-                    Some(self.info.cyWindowBorders),
-                ),
-                &other_rects,
-            );
-            if nearest_result.is_none() {
-                debug!("Unable to find window {} from {}", &direction, self.title);
-                return self.clone();
-            }
-        }
-        let (nearest_window, nearest_delta): (String, i32) = nearest_result.unwrap();
-        let nearest_window: Window = candidate_windows
-            .iter()
-            .find(|window| window.title == nearest_window)
-            .map(|window| window.clone())
-            .unwrap();
-        debug!(
-            "Located nearest window({}): {} at a distance of {}",
-            &direction, &nearest_window.title, nearest_delta
-        );
-        return nearest_window;
+    pub fn create_nearest_candidate(&self) -> DirectionCandidate<Window> {
+        return DirectionCandidate {
+            object: self,
+            name: String::from(&self.title),
+            rect: RECT {
+                left: self.info.rcWindow.left + self.info.cxWindowBorders as i32,
+                top: self.info.rcWindow.top + self.info.cyWindowBorders as i32,
+                right: self.info.rcWindow.right,
+                bottom: self.info.rcWindow.bottom,
+            },
+            offset_x: Some(self.info.cxWindowBorders),
+            offset_y: Some(self.info.cyWindowBorders),
+        };
     }
 
-    pub fn swap_windows(&mut self, mut window: Window) {
+    pub fn find_nearest_in_direction(&mut self, direction: &Direction) -> Option<Window> {
+        {
+            let mut nearest_result: Option<DirectionResult<Window>> = None;
+            let origin = self.create_nearest_candidate();
+            let mut all_candidates: Vec<Vec<DirectionCandidate<Window>>> = Vec::new();
+            let monitors = &mut MONITORS.write().unwrap();
+            let current_hmonitor = get_monitor_from_window(self.hwnd);
+            let current_monitor = monitors
+                .iter_mut()
+                .find(|monitor| monitor.hmonitor == current_hmonitor)
+                .expect("Unable to find current monitor");
+            let current_workspace = current_monitor.current_workspace();
+            let workspace_windows = current_workspace.all_windows();
+            all_candidates.push(
+                workspace_windows
+                    .iter()
+                    .filter(|window| !window.eq(&self))
+                    .map(|window| window.create_nearest_candidate())
+                    .collect(),
+            );
+            let current_group = current_workspace.current_group();
+            let group_windows = &current_group.windows;
+            all_candidates.push(
+                group_windows
+                    .iter()
+                    .filter(|window| !window.eq(&self))
+                    .map(|window| window.create_nearest_candidate())
+                    .collect(),
+            );
+            for candidate_set in all_candidates {
+                if nearest_result.is_some() {
+                    let nearest_window = nearest_result.unwrap().object;
+                    debug!("Found nearest window '{}'", nearest_window.title);
+                    return Some(nearest_window.clone());
+                }
+                nearest_result = direction.find_nearest(&origin, &candidate_set);
+            }
+        }
+        let monitors = &mut MONITORS.write().unwrap();
+        let current_hmonitor = get_monitor_from_window(self.hwnd);
+        let current_monitor = monitors
+            .iter_mut()
+            .find(|monitor| monitor.hmonitor == current_hmonitor)
+            .expect("Unable to find current monitor");
+        let current_monitor_neighbors = &current_monitor.neighbors;
+        let neighbor_monitor_result = current_monitor_neighbors.get(direction);
+        if neighbor_monitor_result.is_some() {
+            let neighbor_monitor_name = neighbor_monitor_result.unwrap();
+            let neighbor_monitor = monitors
+                .iter_mut()
+                .find(|monitor| &monitor.name == neighbor_monitor_name)
+                .expect("No such monitor");
+            let neighbor_monitor_workspace = neighbor_monitor.current_workspace();
+            let neighbor_monitor_windows = &neighbor_monitor_workspace.all_windows();
+            let neighbor_monitor_workspace_candidates: Vec<DirectionCandidate<Window>> =
+                neighbor_monitor_windows
+                    .iter()
+                    .map(|window| window.create_nearest_candidate())
+                    .collect();
+        }
+        debug!("Unable to find nearest window");
+        return None;
+    }
+
+    pub fn move_in_direction(&mut self, direction: &Direction) {
+        let nearest_result = self.find_nearest_in_direction(direction);
+        if nearest_result.is_some() {
+            let target_window = nearest_result.unwrap();
+            self.swap_windows(target_window);
+        } else {
+            debug!("Moving window {} {}", String::from(&self.title), direction);
+        }
+    }
+
+    fn swap_windows(&mut self, mut window: Window) {
+        debug!(
+            "Swapping window {} with {}",
+            String::from(&self.title),
+            String::from(&window.title)
+        );
         let current_pos: RECT = self.rect;
         let target_pos: RECT = window.rect;
         // Calculate drop shadow width
@@ -183,11 +174,6 @@ impl Window {
         self.rect = position;
         set_window_pos(self, offset.unwrap_or(0));
     }
-
-    // fn set_placement(&mut self, placement: &WINDOWPLACEMENT) {
-    //     set_window_placement(self, placement);
-    //     self.placement = placement.clone();
-    // }
 }
 
 impl PartialEq for Window {

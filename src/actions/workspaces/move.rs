@@ -15,7 +15,7 @@ pub struct MoveToWorkspace {
 
 impl Execute for MoveToWorkspace {
     fn execute(&self) {
-        let mut monitors = MONITORS.lock().unwrap();
+        let mut monitors = MONITORS.write().unwrap();
         let window_handle = get_foreground_handle();
         let monitor_handle = get_monitor_from_window(window_handle);
         let monitor = monitors

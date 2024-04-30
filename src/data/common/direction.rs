@@ -1,4 +1,3 @@
-use log::debug;
 use std::f32;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
@@ -7,7 +6,7 @@ use windows::Win32::Foundation::{POINT, RECT};
 
 use crate::data::common::direction::Direction::{DOWN, LEFT, RIGHT, UP};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Hash, Eq)]
 pub enum Direction {
     LEFT,
     DOWN,
@@ -15,12 +14,26 @@ pub enum Direction {
     RIGHT,
 }
 
+pub struct DirectionCandidate<'a, T> {
+    pub object: &'a T,
+    pub name: String,
+    pub rect: RECT,
+    pub offset_x: Option<u32>,
+    pub offset_y: Option<u32>,
+}
+
+pub struct DirectionResult<'a, T> {
+    pub object: &'a T,
+    pub distance: i32,
+    point: POINT,
+}
+
 impl Direction {
-    pub fn find_nearest(
-        &self,
-        origin: (String, RECT, Option<u32>, Option<u32>),
-        candidates: &Vec<(String, RECT, Option<u32>, Option<u32>)>,
-    ) -> Option<(String, i32)> {
+    pub fn find_nearest<'a, 'b, T>(
+        &'a self,
+        origin: &'b DirectionCandidate<T>,
+        candidates: &'b Vec<DirectionCandidate<'a, T>>,
+    ) -> Option<DirectionResult<T>> {
         /*
            Virtual Screen Coordinates:
            Lower  X values are in the left direction
@@ -29,20 +42,20 @@ impl Direction {
            Higher Y values are in the down direction
         */
         let origin_point: POINT = POINT {
-            x: origin.1.left,
-            y: origin.1.top,
+            x: origin.rect.left,
+            y: origin.rect.top,
         };
-        let mut nearest: Option<(String, POINT, i32)> = None;
         // debug!(
         //     "Attempting to find nearest({}) candidate from '{}' using offsets {{x: {}, y: {}}}",
         //     self, origin.0, origin_offset_x, origin_offset_y
         // );
+        let mut results: Vec<DirectionResult<T>> = Vec::new();
         candidates.iter().for_each(|candidate| {
-            let candidate_offset_x = candidate.2.unwrap_or_default() as i32;
-            let candidate_offset_y = candidate.3.unwrap_or_default() as i32;
+            let candidate_offset_x = candidate.offset_x.unwrap_or_default() as i32;
+            let candidate_offset_y = candidate.offset_y.unwrap_or_default() as i32;
             let candidate_point: POINT = POINT {
-                x: candidate.1.left,
-                y: candidate.1.top,
+                x: candidate.rect.left,
+                y: candidate.rect.top,
             };
             // debug!(
             //     "Evaluating {} {:?} with offsets {{x: {}, y: {}}}",
@@ -98,17 +111,22 @@ impl Direction {
             }
             let distance: f32 = ((delta_x.pow(2) + delta_y.pow(2)) as f32).sqrt();
             // debug!("Calculated '{}' distance as {}", candidate.0, &distance);
-            let current_nearest = nearest.clone();
-            if current_nearest.is_none() || current_nearest.unwrap().2 > distance as i32 {
-                nearest = Some((String::from(&candidate.0), candidate_point, distance as i32));
-                // debug!("Current nearest is now {} at {}", candidate.0, distance);
-            }
+            results.push(DirectionResult {
+                object: &candidate.object,
+                distance: distance as i32,
+                point: candidate_point,
+            });
         });
-        if nearest.is_none() {
+        if results.is_empty() {
             return None;
         }
-        let nearest_result = nearest.unwrap();
-        return Some((nearest_result.0, nearest_result.2));
+        results.sort_by(|a, b| a.distance.cmp(&b.distance));
+        let final_result = &results[0];
+        return Some(DirectionResult {
+            object: final_result.object,
+            distance: final_result.distance,
+            point: final_result.point,
+        });
     }
 }
 
