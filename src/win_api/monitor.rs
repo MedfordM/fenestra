@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::mem;
+use std::sync::Arc;
 
 use log::error;
 use windows::core::PCSTR;
@@ -28,7 +30,7 @@ pub fn get_all() {
         _lparam: LPARAM,
     ) -> BOOL {
         let monitor: Monitor = Monitor::from(hmonitor);
-        MONITORS.write().unwrap().push(monitor);
+        unsafe { MONITORS.push(Arc::new(RefCell::new(monitor))) };
         return BOOL::from(true);
     }
     let result = unsafe { EnumDisplayMonitors(None, None, Some(enum_displays_callback), None) };
@@ -146,43 +148,47 @@ fn get_scale(hmonitor: HMONITOR) -> DEVICE_SCALE_FACTOR {
 }
 
 fn assign_neighbors() {
-    let mons = MONITORS.read().unwrap().clone();
-    let min_width: i32 = MONITORS
-        .read()
-        .unwrap()
+    let min_width: i32 = unsafe { MONITORS
         .iter()
-        .map(|monitor| {
+        .map(|monitor| Arc::clone(monitor))
+        .map(|monitor_cell| {
+            let monitor = monitor_cell.borrow();
             let origin: i32 = monitor.info.rcMonitor.left.abs();
             let end: i32 = monitor.info.rcMonitor.right.abs();
             return (end - origin).abs();
         })
         .max()
-        .unwrap();
-    let min_height: i32 = MONITORS
-        .read()
-        .unwrap()
+        .unwrap() };
+    let min_height: i32 = unsafe { MONITORS
         .iter()
-        .map(|monitor| {
+        .map(|monitor| Arc::clone(monitor))
+        .map(|monitor_ref| {
+            let monitor = monitor_ref.borrow();
             let origin: i32 = monitor.info.rcMonitor.top.abs();
             let end: i32 = monitor.info.rcMonitor.bottom.abs();
             return (end - origin).abs();
         })
         .max()
-        .unwrap();
-    for monitor in MONITORS.write().unwrap().iter_mut() {
-        let other_monitors: Vec<Monitor> =
-            mons.iter().filter(|m| !m.eq(&monitor)).cloned().collect();
+        .unwrap() };
+    unsafe { MONITORS.iter_mut().for_each(|monitor_ref| {
+        let monitor_cell = Arc::clone(monitor_ref);
+        let mut monitor = monitor_cell.borrow_mut();
+        let other_monitors: Vec<_> = MONITORS.iter().filter(|m| m != &monitor_ref).collect();
         for direction in &ALL_DIRECTIONS {
             let candidates = other_monitors
                 .iter()
-                .map(|m| m.create_nearest_candidate(&direction))
+                .map(|m| {
+                    let m_cell = Arc::clone(&m);
+                    let m_binding = m_cell.borrow();
+                    return m_binding.clone().create_nearest_candidate(&direction);
+                })
                 .collect();
             let max_delta: i32 = match direction {
                 Direction::LEFT | Direction::RIGHT => min_width,
                 Direction::UP | Direction::DOWN => min_height,
             };
             let nearest_result =
-                direction.find_nearest(&monitor.create_nearest_candidate(&direction), &candidates);
+                direction.find_nearest(&monitor.clone().create_nearest_candidate(&direction), candidates);
             if nearest_result.is_none() {
                 continue;
             }
@@ -192,7 +198,7 @@ fn assign_neighbors() {
             }
             let nearest_mon = other_monitors
                 .iter()
-                .find(|m| m.eq(&nearest.object))
+                .find(|m| Arc::clone(m).borrow().eq(&nearest.object))
                 .expect("No such monitor");
             // debug!(
             //     "Found neighbor for '{}': '{}'({}) distance {}",
@@ -200,7 +206,8 @@ fn assign_neighbors() {
             // );
             monitor
                 .neighbors
-                .insert(direction.clone(), String::from(&nearest_mon.name));
+                .insert(direction.clone(), Arc::clone(nearest_mon));
         }
+    }) };
+        
     }
-}

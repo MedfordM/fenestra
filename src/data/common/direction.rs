@@ -14,25 +14,25 @@ pub enum Direction {
     RIGHT,
 }
 
-pub struct DirectionCandidate<'a, T> {
-    pub object: &'a T,
+pub struct DirectionCandidate<T> {
+    pub object: T,
     pub name: String,
     pub rect: RECT,
     pub offset_x: Option<u32>,
     pub offset_y: Option<u32>,
 }
 
-pub struct DirectionResult<'a, T> {
-    pub object: &'a T,
+pub struct DirectionResult<T> {
+    pub object: T,
     pub distance: i32,
     point: POINT,
 }
 
 impl Direction {
-    pub fn find_nearest<'a, 'b, T>(
-        &'a self,
-        origin: &'b DirectionCandidate<T>,
-        candidates: &'b Vec<DirectionCandidate<'a, T>>,
+    pub fn find_nearest<T: Clone>(
+        &self,
+        origin: &DirectionCandidate<T>,
+        candidates: Vec<DirectionCandidate<T>>,
     ) -> Option<DirectionResult<T>> {
         /*
            Virtual Screen Coordinates:
@@ -50,7 +50,7 @@ impl Direction {
         //     self, origin.0, origin_offset_x, origin_offset_y
         // );
         let mut results: Vec<DirectionResult<T>> = Vec::new();
-        candidates.iter().for_each(|candidate| {
+        candidates.into_iter().for_each(|candidate| {
             let candidate_offset_x = candidate.offset_x.unwrap_or_default() as i32;
             let candidate_offset_y = candidate.offset_y.unwrap_or_default() as i32;
             let candidate_point: POINT = POINT {
@@ -112,7 +112,7 @@ impl Direction {
             let distance: f32 = ((delta_x.pow(2) + delta_y.pow(2)) as f32).sqrt();
             // debug!("Calculated '{}' distance as {}", candidate.0, &distance);
             results.push(DirectionResult {
-                object: &candidate.object,
+                object: candidate.object,
                 distance: distance as i32,
                 point: candidate_point,
             });
@@ -121,7 +121,7 @@ impl Direction {
             return None;
         }
         results.sort_by(|a, b| a.distance.cmp(&b.distance));
-        let final_result = &results[0];
+        let final_result = results.remove(0);
         return Some(DirectionResult {
             object: final_result.object,
             distance: final_result.distance,

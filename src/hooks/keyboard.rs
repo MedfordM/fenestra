@@ -23,22 +23,21 @@ pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPAR
     let key_action: KeyAction = KeyAction::from(w_param.0);
     let key: Key = Key::from(key_code);
     let key_press: KeyPress = KeyPress::new(key_action, key);
-    let mut pressed_keys = PRESSED_KEYS.lock().unwrap();
 
     match key_action {
         KeyAction::DOWN => {
             // User pressed a key, add it to KEY_COMBO
-            if !&pressed_keys.contains(&key_press.key) {
-                pressed_keys.push(key_press.key.clone());
+            if !&PRESSED_KEYS.contains(&key_press.key) {
+                PRESSED_KEYS.push(key_press.key.clone());
             }
         }
         KeyAction::UP => {
-            pressed_keys.sort();
+            PRESSED_KEYS.sort();
             let bind_index = &KEYBINDS.iter().position(|key_bind| {
                 // Attempt to find a keybind that matches the pressed_combo
                 let mut bind_keys: Vec<Key> = key_bind.keys.clone();
                 bind_keys.sort();
-                if bind_keys == *pressed_keys {
+                if bind_keys == *PRESSED_KEYS {
                     return true;
                 }
                 return false;
@@ -50,17 +49,17 @@ pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPAR
                 bind.action.execute();
             }
             // Mark the key as released and carry on
-            let key_index = &pressed_keys
+            let key_index = &PRESSED_KEYS
                 .iter()
                 .position(|k| k == &key_press.key)
                 .expect(&(String::from("Failed to release key ".to_owned() + &key_press.key.name)));
-            pressed_keys.remove(*key_index);
+            PRESSED_KEYS.remove(*key_index);
         }
     }
     // Suppress every instance of the WIN key
     // TODO: Instead, check for any key in $modifier
     let win_key: Key = Key::from(WINDOWS_KEY_CODE);
-    if key_press.key == win_key || pressed_keys.contains(&win_key) {
+    if key_press.key == win_key || PRESSED_KEYS.contains(&win_key) {
         LRESULT(10)
     } else {
         return call_next_hook(code, w_param, l_param);

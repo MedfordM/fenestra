@@ -62,8 +62,9 @@ pub unsafe extern "system" fn callback(
             // debug!("Foreground window was updated: {}", window.title);
 
             let monitor_handle = get_monitor_from_window(window.hwnd);
-            let monitors = &mut MONITORS.write().unwrap();
-            monitors.iter_mut().for_each(|monitor| {
+            MONITORS.iter()
+                .map(|monitor| monitor.clone())
+                .for_each(|monitor_ref| {
                 /*
                    On all monitors, remove any stale references to the current window
 
@@ -71,6 +72,7 @@ pub unsafe extern "system" fn callback(
                    remove the (potentially stale) window state from the owning
                    workspace, then add it to the current workspace.
                 */
+                let mut monitor = monitor_ref.borrow_mut();
                 monitor.remove_window(&window);
                 if monitor.hmonitor == monitor_handle {
                     monitor.add_window(&window);
@@ -84,8 +86,10 @@ pub unsafe extern "system" fn callback(
             }
             let window = window_result.unwrap();
             let monitor_handle = get_monitor_from_window(window.hwnd);
-            let monitors = &mut MONITORS.write().unwrap();
-            monitors.iter_mut().for_each(|monitor| {
+            MONITORS.iter()
+            .map(|monitor| monitor.clone())
+            .for_each(|monitor_ref| {
+                let mut monitor = monitor_ref.borrow_mut();
                 if monitor.hmonitor == monitor_handle {
                     let current_workspace = monitor.current_workspace();
                     if !current_workspace.contains_window(&window) {

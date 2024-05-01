@@ -3,14 +3,20 @@ use std::path::Path;
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-use crate::config;
+use crate::{config, win_api};
 use crate::data::key::Keybind;
 use crate::hooks;
-use crate::win_api;
 
 const APP_NAME: &str = "WindowManager\0";
 
-pub fn window() -> HWND {
+pub fn application() {
+    window();
+    hooks();
+    keybinds();
+    monitors();
+}
+
+fn window() -> HWND {
     let app_instance: HMODULE = win_api::misc::get_main_module();
     win_api::window::register_class(app_instance, APP_NAME);
 
@@ -30,18 +36,18 @@ pub fn window() -> HWND {
     return hwnd;
 }
 
-pub fn hooks() -> Vec<(String, isize)> {
+fn hooks() -> Vec<(String, isize)> {
     let hooks: Vec<(String, isize)> = hooks::set_hooks();
     return hooks;
 }
 
-pub fn keybinds() -> Vec<Keybind> {
+fn keybinds() -> Vec<Keybind> {
     let config_path: &Path = Path::new("./fenestra.conf");
     config::load::ensure_exists(config_path);
     let configured_key_binds: Vec<Keybind> = config::parse::parse_content(config_path);
     return configured_key_binds;
 }
 
-pub fn monitors() {
+fn monitors() {
     win_api::monitor::get_all();
 }

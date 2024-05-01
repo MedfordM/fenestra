@@ -1,5 +1,6 @@
 use std::process::exit;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use log::error;
 
@@ -15,24 +16,13 @@ pub struct FocusWorkspace {
 
 impl Execute for FocusWorkspace {
     fn execute(&self) {
-        let mut monitors = MONITORS.write().unwrap();
         let window_handle = get_foreground_handle();
         let monitor_handle = get_monitor_from_window(window_handle);
-        let monitor = monitors
-            .iter_mut()
-            .find(|monitor| monitor.hmonitor == monitor_handle)
-            .expect("Unable to get current monitor");
-        monitor.focus_workspace(self.id);
-        // let current_index = (&current_workspace.id - 1) as usize;
-        // let target_index = (&target_workspace.id - 1) as usize;
-        // workspaces[current_index] = current_workspace.clone();
-        // workspaces[target_index] = target_workspace.clone();
-        // monitor.workspaces = workspaces;
-        // let monitor_index = monitors
-        //     .iter()
-        //     .position(|mon| mon.hmonitor == monitor.hmonitor)
-        //     .expect("Unable to find stateful index of monitor");
-        // monitors[monitor_index] = monitor;
+        let monitor = unsafe { MONITORS
+            .iter()
+            .find(|monitor_ref| Arc::clone(monitor_ref).borrow().hmonitor == monitor_handle)
+            .expect("Unable to get current monitor").clone() };
+        monitor.borrow_mut().focus_workspace(self.id);
     }
 }
 

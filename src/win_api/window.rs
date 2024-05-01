@@ -34,6 +34,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::data::window::Window;
 use crate::hooks;
+use crate::state::HANDLE;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 
 pub fn set_dpi_awareness() {
@@ -178,9 +179,9 @@ pub fn create_window(
     };
 }
 
-pub fn handle_window_events(window_handle: &HWND, hook_ids: &Vec<(String, isize)>) {
+pub fn handle_window_events() {
     let mut message: MSG = MSG::default();
-    while get_message(&mut message, window_handle).into() {
+    while get_message(&mut message, unsafe { HWND(HANDLE) }).into() {
         unsafe {
             let _ = TranslateMessage(&message);
         }
@@ -188,7 +189,7 @@ pub fn handle_window_events(window_handle: &HWND, hook_ids: &Vec<(String, isize)
             DispatchMessageA(&message);
         }
         if message.message == WM_NULL {
-            hooks::unset_hooks(hook_ids);
+            hooks::unset_hooks();
         }
     }
 }
@@ -424,8 +425,8 @@ fn load_cursor() -> HCURSOR {
     return handle_result(unsafe { LoadCursorW(None, IDC_ARROW) });
 }
 
-fn get_message(message: *mut MSG, window_handle: &HWND) -> BOOL {
-    return unsafe { GetMessageA(message, window_handle.to_owned(), 0, 0) };
+fn get_message(message: *mut MSG, window_handle: HWND) -> BOOL {
+    return unsafe { GetMessageA(message, window_handle, 0, 0) };
 }
 
 fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {

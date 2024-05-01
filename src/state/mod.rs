@@ -1,16 +1,13 @@
-use std::sync::{Mutex, RwLock};
+use std::cell::RefCell;
+use std::sync::Arc;
 
-use lazy_static::lazy_static;
-use windows::Win32::Foundation::HWND;
 
 use crate::data::key::{Key, Keybind};
 use crate::data::monitor::Monitor;
 
 pub mod init;
-lazy_static! {
-    pub static ref HANDLE: HWND = init::window();
-    pub static ref HOOKS: Vec<(String, isize)> = init::hooks();
-    pub static ref KEYBINDS: Vec<Keybind> = init::keybinds();
-    pub static ref PRESSED_KEYS: Mutex<Vec<Key>> = Mutex::new(Vec::new());
-    pub static ref MONITORS: RwLock<Vec<Monitor>> = RwLock::new(Vec::new());
-}
+pub static mut HANDLE: isize = 0;
+pub static mut MONITORS: Vec<Arc<RefCell<Monitor>>> = Vec::new();
+pub static mut HOOKS: Vec<(String, isize)> = Vec::new();
+pub static mut KEYBINDS: Vec<Keybind> = Vec::new();
+pub static mut PRESSED_KEYS: Vec<Key> = Vec::new();

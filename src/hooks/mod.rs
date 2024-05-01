@@ -1,7 +1,7 @@
 use log::debug;
 use windows::Win32::UI::{Accessibility::HWINEVENTHOOK, WindowsAndMessaging::HHOOK};
 
-use crate::win_api::hook::{unset_event_hook, unset_hook};
+use crate::{state::HOOKS, win_api::hook::{unset_event_hook, unset_hook}};
 
 pub mod keyboard;
 pub mod window;
@@ -14,13 +14,13 @@ pub fn set_hooks() -> Vec<(String, isize)> {
     return hooks;
 }
 
-pub fn unset_hooks(hooks: &Vec<(String, isize)>) {
+pub fn unset_hooks() {
     debug!("Unsetting hooks");
-    hooks.iter().for_each(|hook| {
+    unsafe { HOOKS.iter().for_each(|hook| {
         match hook.0.as_str() {
             "window" => unset_event_hook(HWINEVENTHOOK(hook.1)),
             "keyboard" => unset_hook(HHOOK(hook.1)),
             _ => ()
         };
-    });
+    }) };
 }

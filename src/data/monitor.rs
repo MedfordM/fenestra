@@ -1,6 +1,8 @@
 use log::debug;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use std::sync::Arc;
 use windows::Win32::Foundation::RECT;
 
 use crate::data::common::axis::Axis::VERTICAL;
@@ -21,7 +23,7 @@ pub struct Monitor {
     pub device_mode: DEVMODEA,
     pub scale: DEVICE_SCALE_FACTOR,
     pub workspaces: Vec<Workspace>,
-    pub neighbors: HashMap<Direction, String>,
+    pub neighbors: HashMap<Direction, Arc<RefCell<Monitor>>>,
 }
 
 impl PartialEq for Monitor {
@@ -133,7 +135,7 @@ impl Monitor {
         return all_windows;
     }
 
-    pub fn create_nearest_candidate(&self, direction: &Direction) -> DirectionCandidate<Monitor> {
+    pub fn create_nearest_candidate(self, direction: &Direction) -> DirectionCandidate<Monitor> {
         let monitor_rect = match direction {
             Direction::LEFT | Direction::RIGHT => RECT {
                 left: unsafe { self.device_mode.Anonymous1.Anonymous2 }
@@ -153,8 +155,8 @@ impl Monitor {
             },
         };
         DirectionCandidate {
-            object: self,
             name: String::from(&self.name),
+            object: self,
             rect: monitor_rect,
             offset_x: None,
             offset_y: None,
