@@ -18,10 +18,13 @@ impl Execute for FocusWorkspace {
     fn execute(&self) {
         let window_handle = get_foreground_handle();
         let monitor_handle = get_monitor_from_window(window_handle);
-        let monitor = unsafe { MONITORS
-            .iter()
-            .find(|monitor_ref| Arc::clone(monitor_ref).borrow().hmonitor == monitor_handle)
-            .expect("Unable to get current monitor").clone() };
+        let monitor = unsafe {
+            MONITORS
+                .iter()
+                .find(|monitor_ref| Arc::clone(monitor_ref).borrow().hmonitor == monitor_handle)
+                .expect("Unable to get current monitor")
+                .clone()
+        };
         monitor.borrow_mut().focus_workspace(self.id);
     }
 }

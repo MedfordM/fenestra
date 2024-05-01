@@ -6,7 +6,6 @@ use windows::Win32::{
 
 use crate::data::action::Execute;
 use crate::state::KEYBINDS;
-use crate::state::PRESSED_KEYS;
 use crate::{
     data::key::{Key, KeyAction, KeyPress, Keybind, WINDOWS_KEY_CODE},
     win_api::hook::{call_next_hook, set_hook},
@@ -15,7 +14,7 @@ use crate::{
 pub fn init_hook() -> HHOOK {
     return set_hook(WH_KEYBOARD_LL, callback);
 }
-
+static mut PRESSED_KEYS: Vec<Key> = Vec::new();
 pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
     let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
@@ -27,33 +26,33 @@ pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPAR
     match key_action {
         KeyAction::DOWN => {
             // User pressed a key, add it to KEY_COMBO
-            if !&PRESSED_KEYS.contains(&key_press.key) {
+            if !PRESSED_KEYS.contains(&key_press.key) {
                 PRESSED_KEYS.push(key_press.key.clone());
             }
         }
         KeyAction::UP => {
             PRESSED_KEYS.sort();
-            let bind_index = &KEYBINDS.iter().position(|key_bind| {
+            let bind_index = KEYBINDS.iter().position(|key_bind| {
                 // Attempt to find a keybind that matches the pressed_combo
                 let mut bind_keys: Vec<Key> = key_bind.keys.clone();
                 bind_keys.sort();
-                if bind_keys == *PRESSED_KEYS {
+                if bind_keys == PRESSED_KEYS {
                     return true;
                 }
                 return false;
             });
             if bind_index.is_some() {
                 // User pressed a defined keybind, execute the action
-                let bind: &Keybind = &KEYBINDS.get(bind_index.unwrap()).unwrap();
+                let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
                 debug!("Executing action for keybind {:?}", bind.keys);
                 bind.action.execute();
             }
             // Mark the key as released and carry on
-            let key_index = &PRESSED_KEYS
+            let key_index = PRESSED_KEYS
                 .iter()
                 .position(|k| k == &key_press.key)
                 .expect(&(String::from("Failed to release key ".to_owned() + &key_press.key.name)));
-            PRESSED_KEYS.remove(*key_index);
+            PRESSED_KEYS.remove(key_index);
         }
     }
     // Suppress every instance of the WIN key

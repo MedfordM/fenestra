@@ -1,19 +1,31 @@
+use std::cell::RefCell;
 use std::path::Path;
+use std::sync::Arc;
 
 use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-use crate::{config, win_api};
 use crate::data::key::Keybind;
+use crate::data::monitor::Monitor;
 use crate::hooks;
+use crate::state::{HANDLE, HOOKS, KEYBINDS, MONITORS};
+use crate::{config, win_api};
 
 const APP_NAME: &str = "WindowManager\0";
 
 pub fn application() {
-    window();
-    hooks();
-    keybinds();
-    monitors();
+    unsafe {
+        MONITORS = monitors();
+    }
+    unsafe {
+        HANDLE = window().0;
+    }
+    unsafe {
+        HOOKS = hooks();
+    }
+    unsafe {
+        KEYBINDS = keybinds();
+    }
 }
 
 fn window() -> HWND {
@@ -48,6 +60,6 @@ fn keybinds() -> Vec<Keybind> {
     return configured_key_binds;
 }
 
-fn monitors() {
-    win_api::monitor::get_all();
+fn monitors() -> Vec<Arc<RefCell<Monitor>>> {
+    return win_api::monitor::get_all();
 }
