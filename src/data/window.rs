@@ -96,9 +96,10 @@ impl Window {
                 .collect(),
         );
         let current_group = current_workspace.current_group();
-        let group_windows = &current_group.windows;
+        let group_windows = &current_group.get_windows();
         all_candidates.push(
             group_windows
+                .borrow()
                 .iter()
                 .filter(|window| !window.eq(&self))
                 .map(|window| window.create_nearest_candidate())
@@ -149,6 +150,25 @@ impl Window {
     fn swap_windows(&mut self, mut window: Window) {
         debug!(
             "Swapping window {} with {}",
+            String::from(&self.title),
+            String::from(&window.title)
+        );
+        let current_pos: RECT = self.rect;
+        let target_pos: RECT = window.rect;
+        // Calculate drop shadow width
+        // let current_delta = 0;
+        // let target_delta = 0;
+        let current_delta = self.bounding_rect.left - self.rect.left;
+        let target_delta = window.bounding_rect.left - window.rect.left;
+        // let current_delta = self.bounding_rect.top - self.rect.top;
+        // let target_delta = window.bounding_rect.top - window.rect.top;
+        window.set_position(current_pos, Some(current_delta - target_delta));
+        self.set_position(target_pos, Some(target_delta - current_delta));
+    }
+
+    fn swap_window_positions(&mut self, mut window: Window) {
+        debug!(
+            "Swapping window positions of {} and {}",
             String::from(&self.title),
             String::from(&window.title)
         );

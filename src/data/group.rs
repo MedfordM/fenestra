@@ -1,19 +1,53 @@
 use crate::data::common::axis::Axis;
 use crate::data::window::Window;
-use std::collections::HashSet;
+use log::debug;
+use std::cell::RefCell;
 use windows::Win32::Foundation::{HWND, RECT};
 
 #[derive(Clone)]
 pub struct Group {
     pub index: usize,
-    pub windows: HashSet<Window>,
+    windows: RefCell<Vec<Window>>,
     pub split_axis: Axis,
 }
 
 impl Group {
+    pub fn new(index: usize, windows: Vec<Window>, split_axis: Axis) -> Self {
+        Self {
+            index,
+            windows: RefCell::new(windows),
+            split_axis,
+        }
+    }
+
+    pub fn get_windows(&self) -> &RefCell<Vec<Window>> {
+        &self.windows
+    }
+
+    pub fn swap_windows(&mut self, window_1: &mut Window, window_2: &mut Window) {
+        let index_1 = self
+            .windows
+            .borrow()
+            .iter()
+            .position(|w| w == window_1)
+            .unwrap();
+        let index_2 = self
+            .windows
+            .borrow()
+            .iter()
+            .position(|w| w == window_2)
+            .unwrap();
+        self.windows.borrow_mut().swap(index_1, index_2);
+    }
+
     pub fn arrange_windows(&mut self, rect: RECT) {
-        let mut windows = Vec::from_iter(self.windows.clone());
+        let mut windows = self.windows.borrow().clone();
+        let window_titles: Vec<String> = windows
+            .iter()
+            .map(|window| String::from(window.title.clone()))
+            .collect();
         let num_windows = windows.len();
+        debug!("Arranging {} windows: {:?}", num_windows, window_titles);
         let rect_width = rect.right - rect.left;
         let rect_height = rect.bottom - rect.top;
         let section_width = match self.split_axis {
@@ -28,9 +62,9 @@ impl Group {
         //     "Computed section width as {} with {} windows",
         //     section_width, num_windows
         // );
-        let mut index = 0;
         // debug!("Arranging group in rect {:?}", self.rect);
-        for window in &mut windows {
+        let mut index = 0;
+        for window in windows.iter_mut() {
             let new_position = match self.split_axis {
                 Axis::HORIZONTAL => {
                     let top = rect.top + (section_height as i32 * index);
@@ -52,38 +86,49 @@ impl Group {
             // debug!("Arranging '{}' to {:?}", window.title, new_position);
             window.restore();
             window.set_position(new_position, None);
-            index = index + 1;
+            index += 1;
         }
-        self.windows = HashSet::from_iter(windows);
+        *self.windows.borrow_mut() = windows;
     }
 
     pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
-        self.windows.iter().any(|window| window.hwnd == *hwnd)
+        self.windows
+            .borrow()
+            .iter()
+            .any(|window| window.hwnd == *hwnd)
     }
 
     pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
         if !self.contains_hwnd(hwnd) {
             return false;
         }
-        let old_len = self.windows.len();
-        self.windows = self.windows.clone().into_iter().filter(|window| window.hwnd == *hwnd).collect();
-        let new_len = self.windows.len();
+        let mut windows = self.windows.borrow_mut();
+        let old_len = windows.len();
+        windows.retain(|window| window.hwnd != *hwnd);
+        let new_len = windows.len();
         return new_len < old_len;
     }
 
-
     pub fn contains_window(&self, window: &Window) -> bool {
-        self.windows.contains(window)
+        self.windows.borrow().contains(window)
     }
 
     pub fn remove_window(&mut self, window: &Window) -> bool {
-        if !self.contains_window(window) {
-            return false;
-        }
-        return self.windows.remove(window);
+        let mut windows = self.windows.borrow_mut();
+        let old_len = windows.len();
+        windows.retain(|w| w != window);
+        let new_len = windows.len();
+        return old_len > new_len;
     }
 
-    pub fn add_window(&mut self, window: &Window) -> bool {
-        return self.windows.insert(window.clone());
+    pub fn add_window(&mut self, window: Window) -> bool {
+        let mut windows = self.windows.borrow_mut();
+        if windows.contains(&window) {
+            let index = windows.iter().position(|w| w == &window).unwrap();
+            windows[index] = window;
+        } else {
+            windows.push(window);
+        }
+        return true;
     }
 }

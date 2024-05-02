@@ -1,13 +1,8 @@
+use crate::data::action::Execute;
+use crate::data::monitor::Monitor;
+use log::error;
 use std::process::exit;
 use std::str::FromStr;
-use std::sync::Arc;
-
-use log::error;
-
-use crate::data::action::Execute;
-use crate::state::MONITORS;
-use crate::win_api::monitor::get_monitor_from_window;
-use crate::win_api::window::get_foreground_handle;
 
 #[derive(Clone, PartialEq)]
 pub struct FocusWorkspace {
@@ -16,16 +11,8 @@ pub struct FocusWorkspace {
 
 impl Execute for FocusWorkspace {
     fn execute(&self) {
-        let window_handle = get_foreground_handle();
-        let monitor_handle = get_monitor_from_window(window_handle);
-        let monitor = unsafe {
-            MONITORS
-                .iter()
-                .find(|monitor_ref| Arc::clone(monitor_ref).borrow().hmonitor == monitor_handle)
-                .expect("Unable to get current monitor")
-                .clone()
-        };
-        monitor.borrow_mut().focus_workspace(self.id);
+        let current_monitor = Monitor::current();
+        current_monitor.borrow_mut().focus_workspace(self.id);
     }
 }
 

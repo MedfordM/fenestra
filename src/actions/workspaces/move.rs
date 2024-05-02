@@ -1,13 +1,11 @@
 use std::process::exit;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use log::error;
 
 use crate::data::action::Execute;
-use crate::state::MONITORS;
-use crate::win_api::monitor::get_monitor_from_window;
-use crate::win_api::window::{get_foreground_handle, get_foreground_window};
+use crate::data::monitor::Monitor;
+use crate::win_api::window::get_foreground_window;
 
 #[derive(Clone, PartialEq)]
 pub struct MoveToWorkspace {
@@ -16,17 +14,12 @@ pub struct MoveToWorkspace {
 
 impl Execute for MoveToWorkspace {
     fn execute(&self) {
-        let window_handle = get_foreground_handle();
-        let monitor_handle = get_monitor_from_window(window_handle);
-        let monitor_cell = unsafe { MONITORS
-            .iter()
-            .find(|monitor| Arc::clone(monitor).borrow().hmonitor == monitor_handle)
-            .expect("Unable to get current monitor").clone() };
         let window = get_foreground_window();
-        let mut monitor = monitor_cell.borrow_mut();
+        let monitor_ref = Monitor::current();
+        let mut monitor = monitor_ref.borrow_mut();
         monitor.remove_window(&window);
         window.minimize();
-        monitor.add_window_to_workspace(self.id, &window);
+        monitor.add_window_to_workspace(self.id, window);
         monitor.current_workspace().arrange_windows();
     }
 }

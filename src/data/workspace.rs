@@ -22,7 +22,7 @@ impl Workspace {
     pub fn all_windows(&self) -> HashSet<Window> {
         let mut windows = HashSet::new();
         self.groups.iter().for_each(|group| {
-            windows.extend(group.windows.clone());
+            windows.extend(group.get_windows().borrow().clone());
         });
         return windows;
     }
@@ -32,13 +32,13 @@ impl Workspace {
        their own windows how they see fit (horizontal, vertical, stacked)
     */
     pub fn arrange_windows(&mut self) {
-        let num_groups = self.groups.len();
         let all_windows = self.all_windows();
         if all_windows.len() == 1 {
             let window = all_windows.iter().next().unwrap();
             window.maximize();
             return;
         }
+        let num_groups = self.groups.len();
         let rect_width = self.rect.right - self.rect.left;
         let group_width = rect_width as f32 / num_groups as f32;
         self.groups.iter_mut().for_each(|group| {
@@ -55,6 +55,7 @@ impl Workspace {
     pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
         self.all_windows().iter().any(|window| window.hwnd == *hwnd)
     }
+
     pub fn contains_window(&self, window: &Window) -> bool {
         self.all_windows().contains(window)
     }
@@ -77,7 +78,7 @@ impl Workspace {
         });
         self.focused = false;
     }
-    
+
     pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
         let group_result = self.group_from_hwnd(hwnd);
         if group_result.is_none() {
@@ -99,22 +100,20 @@ impl Workspace {
         let group = group_result.unwrap();
         let result = group.remove_window(window);
         if result {
-            // debug!("Removed '{}' from workspace {}", window.title, self.id);
+            debug!("Removed '{}' from workspace {}", window.title, self.id);
         }
         return result;
     }
 
-    pub fn add_window(&mut self, window: &Window) -> bool {
-        let groups = &mut self.groups;
-        let mut target_group = groups.pop().unwrap();
-        let result = target_group.add_window(window);
+    pub fn add_window(&mut self, window: Window) -> bool {
+        let title = String::from(&window.title);
+        let result = self.groups[0].add_window(window);
         if result {
-            groups.push(target_group);
-            // debug!("Added '{}' to workspace {}", &window.title, &self.id);
+            debug!("Added '{}' to workspace {}", title, self.id);
         }
         return result;
     }
-    
+
     fn group_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Group> {
         return self
             .groups

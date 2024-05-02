@@ -1,3 +1,4 @@
+use log::debug;
 use std::f32;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
@@ -46,8 +47,8 @@ impl Direction {
             y: origin.rect.top,
         };
         // debug!(
-        //     "Attempting to find nearest({}) candidate from '{}' using offsets {{x: {}, y: {}}}",
-        //     self, origin.0, origin_offset_x, origin_offset_y
+        //     "Attempting to find nearest({}) candidate from '{} at position {:?}'",
+        //     self, origin.name, origin_point
         // );
         let mut results: Vec<DirectionResult<T>> = Vec::new();
         candidates.into_iter().for_each(|candidate| {
@@ -58,8 +59,8 @@ impl Direction {
                 y: candidate.rect.top,
             };
             // debug!(
-            //     "Evaluating {} {:?} with offsets {{x: {}, y: {}}}",
-            //     candidate.0, candidate_point, candidate_offset_x, candidate_offset_y
+            //     "Evaluating candidate '{}' at position {:?}",
+            //     candidate.name, candidate_point
             // );
             let delta_x: i32 = candidate_point.x - origin_point.x;
             let delta_y: i32 = candidate_point.y - origin_point.y;
@@ -109,7 +110,9 @@ impl Direction {
                     }
                 }
             }
-            let distance: f32 = ((delta_x.pow(2) + delta_y.pow(2)) as f32).sqrt();
+            let delta_x_pow = delta_x.pow(2);
+            let delta_y_pow = delta_y.pow(2);
+            let distance: f64 = ((delta_x_pow + delta_y_pow) as f64).sqrt();
             // debug!("Calculated '{}' distance as {}", candidate.0, &distance);
             results.push(DirectionResult {
                 object: candidate.object,

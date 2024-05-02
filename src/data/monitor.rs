@@ -13,7 +13,9 @@ use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::group::Group;
 use crate::data::window::Window;
 use crate::data::workspace::Workspace;
-use crate::win_api::monitor::{get_monitor, get_windows_on_monitor};
+use crate::state::MONITORS;
+use crate::win_api::monitor::{get_monitor, get_monitor_from_window, get_windows_on_monitor};
+use crate::win_api::window::get_foreground_handle;
 
 #[derive(Clone, Default)]
 pub struct Monitor {
@@ -35,6 +37,19 @@ impl PartialEq for Monitor {
 impl Monitor {
     pub fn from(value: HMONITOR) -> Self {
         get_monitor(value)
+    }
+
+    pub fn current() -> Arc<RefCell<Monitor>> {
+        let window_handle = get_foreground_handle();
+        let monitor_handle = get_monitor_from_window(window_handle);
+        return unsafe {
+            Arc::clone(
+                MONITORS
+                    .iter()
+                    .find(|monitor_ref| Arc::clone(monitor_ref).borrow().hmonitor == monitor_handle)
+                    .expect("Unable to get current monitor"),
+            )
+        };
     }
 
     pub fn current_workspace(&mut self) -> &mut Workspace {
@@ -59,12 +74,12 @@ impl Monitor {
         self.workspaces[(id - 1) as usize].focus();
     }
 
-    pub fn add_window_to_workspace(&mut self, id: u32, window: &Window) {
+    pub fn add_window_to_workspace(&mut self, id: u32, window: Window) {
         let current_workspace = self.current_workspace();
         if id == current_workspace.id {
             return;
         }
-        current_workspace.remove_window(window);
+        current_workspace.remove_window(&window);
         self.workspaces[(id - 1) as usize].add_window(window);
     }
 
@@ -89,11 +104,7 @@ impl Monitor {
             focused: true,
             rect,
             split_axis: VERTICAL,
-            groups: vec![Group {
-                index: 0,
-                windows: get_windows_on_monitor(hmonitor),
-                split_axis: VERTICAL,
-            }],
+            groups: vec![Group::new(0, get_windows_on_monitor(hmonitor), VERTICAL)],
         };
         workspaces.push(default_workspace);
         for i in 2..10 {
@@ -102,11 +113,7 @@ impl Monitor {
                 focused: false,
                 rect,
                 split_axis: VERTICAL,
-                groups: vec![Group {
-                    index: 0,
-                    windows: HashSet::new(),
-                    split_axis: VERTICAL,
-                }],
+                groups: vec![Group::new(0, Vec::new(), VERTICAL)],
             };
             workspaces.push(workspace);
         }
@@ -121,11 +128,11 @@ impl Monitor {
         return self.all_windows().iter().any(|window| window.hwnd == *hwnd);
     }
 
-    pub fn add_window(&mut self, window: &Window) -> bool {
+    pub fn add_window(&mut self, window: Window) -> bool {
         let current_workspace = self.current_workspace();
         return current_workspace.add_window(window);
     }
-    
+
     pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
         if !self.contains_hwnd(hwnd) {
             return false;

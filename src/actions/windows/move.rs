@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use crate::data::action::Execute;
 use crate::data::common::direction::Direction;
-use crate::win_api::window::get_foreground_window;
+use crate::data::monitor::Monitor;
+use crate::win_api::window::get_foreground_handle;
 
 #[derive(Clone, PartialEq)]
 pub struct MoveWindow {
@@ -11,8 +12,21 @@ pub struct MoveWindow {
 
 impl Execute for MoveWindow {
     fn execute(&self) {
-        let mut current_window = get_foreground_window();
-        current_window.move_in_direction(&self.direction);
+        let current_hwnd = get_foreground_handle();
+        let current_monitor_ref = Monitor::current();
+        let mut current_monitor = current_monitor_ref.borrow_mut();
+        let current_workspace = current_monitor.current_workspace();
+        {
+            let current_group = current_workspace.current_group();
+            let mut group_windows = current_group.get_windows().borrow_mut();
+            let current_window = group_windows
+                .iter_mut()
+                .find(|window| window.hwnd == current_hwnd)
+                .unwrap();
+            // let mut current_window = get_foreground_window();
+            current_window.move_in_direction(&self.direction);
+        }
+        current_workspace.arrange_windows();
     }
 }
 
