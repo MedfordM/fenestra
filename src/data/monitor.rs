@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::sync::Arc;
-use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::{HWND, RECT};
 
 use crate::data::common::axis::Axis::VERTICAL;
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
@@ -68,15 +68,18 @@ impl Monitor {
         self.workspaces[(id - 1) as usize].add_window(window);
     }
 
-    pub fn workspace_from_window(&mut self, window: &Window) -> Option<&mut Workspace> {
-        if !self.contains_window(window) {
+    fn workspace_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Workspace> {
+        if !self.contains_hwnd(hwnd) {
             return None;
         }
-        let search_result = self
+        return self
             .workspaces
             .iter_mut()
-            .find(|workspace| workspace.all_windows().contains(window));
-        return search_result;
+            .find(|workspace| workspace.contains_hwnd(hwnd));
+    }
+
+    pub fn workspace_from_window(&mut self, window: &Window) -> Option<&mut Workspace> {
+        return self.workspace_from_hwnd(&window.hwnd);
     }
 
     pub fn init_workspaces(hmonitor: HMONITOR, rect: RECT) -> Vec<Workspace> {
@@ -111,20 +114,38 @@ impl Monitor {
     }
 
     pub fn contains_window(&self, window: &Window) -> bool {
-        return self.all_windows().contains(window);
+        return self.contains_hwnd(&window.hwnd);
+    }
+
+    pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
+        return self.all_windows().iter().any(|window| window.hwnd == *hwnd);
     }
 
     pub fn add_window(&mut self, window: &Window) -> bool {
         let current_workspace = self.current_workspace();
         return current_workspace.add_window(window);
     }
+    
+    pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
+        if !self.contains_hwnd(hwnd) {
+            return false;
+        }
+        let workspace = self.workspace_from_hwnd(hwnd);
+        if workspace.is_none() {
+            return false;
+        }
+        return workspace.unwrap().remove_hwnd(hwnd);
+    }
 
     pub fn remove_window(&mut self, window: &Window) -> bool {
         if !self.contains_window(window) {
             return false;
         }
-        let workspace = self.current_workspace();
-        return workspace.remove_window(window);
+        let workspace = self.workspace_from_hwnd(&window.hwnd);
+        if workspace.is_none() {
+            return false;
+        }
+        return workspace.unwrap().remove_window(window);
     }
 
     pub fn all_windows(&self) -> HashSet<Window> {

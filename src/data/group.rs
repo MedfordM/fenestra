@@ -1,7 +1,7 @@
 use crate::data::common::axis::Axis;
 use crate::data::window::Window;
 use std::collections::HashSet;
-use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::{HWND, RECT};
 
 #[derive(Clone)]
 pub struct Group {
@@ -56,6 +56,21 @@ impl Group {
         }
         self.windows = HashSet::from_iter(windows);
     }
+
+    pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
+        self.windows.iter().any(|window| window.hwnd == *hwnd)
+    }
+
+    pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
+        if !self.contains_hwnd(hwnd) {
+            return false;
+        }
+        let old_len = self.windows.len();
+        self.windows = self.windows.clone().into_iter().filter(|window| window.hwnd == *hwnd).collect();
+        let new_len = self.windows.len();
+        return new_len < old_len;
+    }
+
 
     pub fn contains_window(&self, window: &Window) -> bool {
         self.windows.contains(window)

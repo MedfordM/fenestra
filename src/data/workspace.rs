@@ -4,7 +4,7 @@ use std::fmt::{Debug, Formatter};
 use crate::data::common::axis::Axis;
 use crate::data::group::Group;
 use log::debug;
-use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::{HWND, RECT};
 
 use crate::data::window::Window;
 use crate::win_api::window::get_foreground_window;
@@ -52,6 +52,9 @@ impl Workspace {
         });
     }
 
+    pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
+        self.all_windows().iter().any(|window| window.hwnd == *hwnd)
+    }
     pub fn contains_window(&self, window: &Window) -> bool {
         self.all_windows().contains(window)
     }
@@ -74,9 +77,22 @@ impl Workspace {
         });
         self.focused = false;
     }
+    
+    pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
+        let group_result = self.group_from_hwnd(hwnd);
+        if group_result.is_none() {
+            return false;
+        }
+        let group = group_result.unwrap();
+        let result = group.remove_hwnd(hwnd);
+        if result {
+            // debug!("Removed '{}' from workspace {}", window.title, self.id);
+        }
+        return result;
+    }
 
     pub fn remove_window(&mut self, window: &Window) -> bool {
-        let group_result = self.group_from_window(window);
+        let group_result = self.group_from_hwnd(&window.hwnd);
         if group_result.is_none() {
             return false;
         }
@@ -98,12 +114,12 @@ impl Workspace {
         }
         return result;
     }
-
-    fn group_from_window(&mut self, window: &Window) -> Option<&mut Group> {
+    
+    fn group_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Group> {
         return self
             .groups
             .iter_mut()
-            .find(|group| group.contains_window(window));
+            .find(|group| group.contains_hwnd(hwnd));
     }
 
     pub fn current_group<'a, 'b>(&'a mut self) -> &'b mut Group
@@ -112,7 +128,7 @@ impl Workspace {
     {
         let current_window = get_foreground_window();
         return self
-            .group_from_window(&current_window)
+            .group_from_hwnd(&current_window.hwnd)
             .expect("Current window is not located on this workspace");
     }
 }

@@ -3,12 +3,12 @@ use windows::Win32::{
     Foundation::HWND,
     UI::{
         Accessibility::HWINEVENTHOOK,
-        WindowsAndMessaging::{CHILDID_SELF, EVENT_SYSTEM_FOREGROUND, OBJID_WINDOW},
+        WindowsAndMessaging::{CHILDID_SELF, EVENT_SYSTEM_FOREGROUND, OBJID_WINDOW, EVENT_OBJECT_DESTROY},
     },
 };
 
 use crate::state::MONITORS;
-use crate::win_api::monitor::get_monitor_from_window;
+use crate::win_api::monitor::{get_monitor_from_window, revalidate_windows};
 use crate::{data::window::Window, win_api::hook::set_event_hook};
 
 pub fn init_hook() -> HWINEVENTHOOK {
@@ -25,6 +25,20 @@ pub unsafe extern "system" fn callback(
     _: u32,
 ) {
     match event {
+        EVENT_OBJECT_DESTROY => {
+            if hwnd.0 == 0 {
+                return;
+            }
+            
+            if object_id != OBJID_WINDOW.0 {
+                return;
+            }
+            
+            if child_id != CHILDID_SELF as i32 {
+                return;
+            }
+            
+        },
         EVENT_SYSTEM_FOREGROUND => {
             if hwnd.0 == 0 {
                 return;
@@ -42,7 +56,7 @@ pub unsafe extern "system" fn callback(
             if window_result.is_none() {
                 return;
             }
-
+            revalidate_windows();
             let window = window_result.unwrap();
             // TODO: Add a border to the newly focused window here
             // let border_hwnd = create_window(
@@ -77,6 +91,8 @@ pub unsafe extern "system" fn callback(
                 if monitor.hmonitor == monitor_handle {
                     monitor.add_window(&window);
                 }
+                // TODO: Once window indexes within groups are stateful, arrange the windows here 
+                // monitor.current_workspace().arrange_windows();
             });
         }
         EVENT_SYSTEM_MOVESIZEEND => {
@@ -84,6 +100,7 @@ pub unsafe extern "system" fn callback(
             if window_result.is_none() {
                 return;
             }
+            revalidate_windows();
             let window = window_result.unwrap();
             let monitor_handle = get_monitor_from_window(window.hwnd);
             MONITORS.iter()

@@ -18,6 +18,7 @@ use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 use crate::data::common::direction::{Direction, ALL_DIRECTIONS};
 use crate::data::monitor::Monitor;
 use crate::data::window::Window;
+use crate::state::MONITORS;
 use crate::win_api::misc::handle_result;
 use crate::win_api::window;
 
@@ -84,6 +85,21 @@ pub fn get_windows_on_monitor(hmonitor: HMONITOR) -> HashSet<Window> {
         .filter(|window| get_monitor_from_window(window.hwnd) == hmonitor)
         .cloned()
         .collect();
+}
+
+pub fn revalidate_windows() {
+    unsafe {
+        MONITORS.iter()
+            .map(|monitor| Arc::clone(monitor))
+            .for_each(|monitor_ref| {
+                let mut monitor = monitor_ref.borrow_mut();
+                monitor.all_windows().iter().for_each(|window| {
+                    if Window::from(window.hwnd).is_none() {
+                        monitor.remove_window(window);
+                    }
+                });
+            });
+    }
 }
 
 // pub fn get_current() -> Monitor {
