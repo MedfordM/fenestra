@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::mem;
-use std::sync::Arc;
 
-use log::{debug, error};
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{
@@ -15,22 +13,18 @@ use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
 
-use crate::data::common::direction::{Direction, ALL_DIRECTIONS};
 use crate::data::monitor::Monitor;
-use crate::data::window::Window;
-use crate::state::MONITORS;
 use crate::win_api::misc::handle_result;
-use crate::win_api::window;
 
 static mut INTERNAL_MONITORS: Vec<Monitor> = Vec::new();
-pub fn get_all() -> Vec<Arc<RefCell<Monitor>>> {
+pub fn get_all() -> Vec<Monitor> {
     extern "system" fn enum_displays_callback(
         hmonitor: HMONITOR,
         _hdc: HDC,
         _rect: *mut RECT,
         _lparam: LPARAM,
     ) -> BOOL {
-        let monitor: Monitor = Monitor::from(hmonitor);
+        let monitor: Monitor = get_monitor(hmonitor);
         unsafe { INTERNAL_MONITORS.push(monitor) };
         return BOOL::from(true);
     }
@@ -38,7 +32,7 @@ pub fn get_all() -> Vec<Arc<RefCell<Monitor>>> {
     if !result.as_bool() {
         error!("Unable to enumerate displays");
     }
-    return assign_neighbors();
+    return unsafe { INTERNAL_MONITORS.clone() };
 }
 
 pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
@@ -64,84 +58,19 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             info: monitor_info.monitorInfo,
             device_mode,
             scale,
-            workspaces: Monitor::init_workspaces(hmonitor, monitor_info.monitorInfo.rcWork),
+            workspaces: Vec::new(),
             neighbors: HashMap::new(),
         }
     }
 }
 
-pub fn get_monitor_from_window(hwnd: HWND) -> HMONITOR {
+pub fn get_hmonitor_from_window(hwnd: HWND) -> HMONITOR {
     let result = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
     if result == HMONITOR::default() {
         error!("Unable to get monitor from window");
     }
     return result;
 }
-
-pub fn get_windows_on_monitor(hmonitor: HMONITOR) -> Vec<Window> {
-    let all_windows: HashSet<Window> = window::get_all();
-    return all_windows
-        .iter()
-        .filter(|window| get_monitor_from_window(window.hwnd) == hmonitor)
-        .cloned()
-        .collect();
-}
-
-/*
-   On all monitors, remove any stale references to the current window
-
-   For the monitor containing the currently focused window,
-   remove the (potentially stale) window state from the owning
-   workspace, then add it to the current workspace.
-*/
-pub fn revalidate_windows() {
-    unsafe {
-        MONITORS
-            .iter()
-            .map(|monitor| Arc::clone(monitor))
-            .for_each(|monitor_ref| {
-                let mut monitor = monitor_ref.borrow_mut();
-                monitor.all_windows().iter().for_each(|window| {
-                    if Window::from(window.hwnd).is_none() {
-                        debug!(
-                            "Removing invalid window '{}' from state, as it no longer exists",
-                            window.title
-                        );
-                        monitor.remove_window(window);
-                    }
-                });
-            });
-    }
-}
-
-/*
-   Remove all references to a window on all monitors other than the specified current_hmonitor
-*/
-pub fn ensure_unique_window_state(window: Window, current_hmonitor: HMONITOR) {
-    unsafe {
-        MONITORS
-            .iter()
-            .map(|monitor| Arc::clone(monitor))
-            .filter(|monitor| monitor.borrow().hmonitor != current_hmonitor)
-            .for_each(|monitor_ref| {
-                let mut monitor = monitor_ref.borrow_mut();
-                if monitor.contains_window(&window) {
-                    monitor.remove_window(&window);
-                    monitor.current_workspace().arrange_windows();
-                }
-            });
-    }
-    let monitor_ref = Monitor::current();
-    let mut monitor = monitor_ref.borrow_mut();
-    monitor.add_window(window);
-    monitor.current_workspace().arrange_windows();
-}
-
-// pub fn get_current() -> Monitor {
-//     let current_window = get_foreground_handle();
-//     let hmonitor = get_monitor_from_window(current_window);
-//     return get_monitor(hmonitor);
-// }
 
 pub fn get_device_mode(device_name: &str) -> DEVMODEA {
     unsafe {
@@ -196,79 +125,4 @@ pub fn get_device_mode(device_name: &str) -> DEVMODEA {
 
 fn get_scale(hmonitor: HMONITOR) -> DEVICE_SCALE_FACTOR {
     return handle_result(unsafe { GetScaleFactorForMonitor(hmonitor) });
-}
-
-fn assign_neighbors() -> Vec<Arc<RefCell<Monitor>>> {
-    let arc_monitors: Vec<Arc<RefCell<Monitor>>> = unsafe { &INTERNAL_MONITORS }
-        .clone()
-        .into_iter()
-        .map(|mon| Arc::new(RefCell::new(mon)))
-        .collect();
-    let monitors: Vec<Monitor> = unsafe { &INTERNAL_MONITORS }.clone();
-    // let mut monitors = unsafe { &INTERNAL_MONITORS }.clone();
-    let min_width: i32 = monitors
-        .iter()
-        .map(|monitor| {
-            let origin: i32 = monitor.info.rcMonitor.left.abs();
-            let end: i32 = monitor.info.rcMonitor.right.abs();
-            return (end - origin).abs();
-        })
-        .max()
-        .unwrap();
-    let min_height: i32 = monitors
-        .iter()
-        .map(|monitor| {
-            let origin: i32 = monitor.info.rcMonitor.top.abs();
-            let end: i32 = monitor.info.rcMonitor.bottom.abs();
-            return (end - origin).abs();
-        })
-        .max()
-        .unwrap();
-    monitors.clone().into_iter().for_each(|monitor| {
-        for direction in &ALL_DIRECTIONS {
-            let other_monitors: Vec<_> = monitors
-                .clone()
-                .into_iter()
-                .filter(|m| m != &monitor)
-                .collect();
-            let candidates = other_monitors
-                .clone()
-                .into_iter()
-                .map(|m| m.create_nearest_candidate(direction))
-                .collect();
-            let max_delta: i32 = match direction {
-                Direction::LEFT | Direction::RIGHT => min_width,
-                Direction::UP | Direction::DOWN => min_height,
-            };
-            let nearest_result = direction.find_nearest(
-                &monitor.clone().create_nearest_candidate(&direction),
-                candidates,
-            );
-            if nearest_result.is_none() {
-                continue;
-            }
-            let nearest = nearest_result.unwrap();
-            if nearest.distance < max_delta {
-                continue;
-            }
-            let nearest_mon = nearest.object;
-            let nearest_mon_arc = arc_monitors
-                .iter()
-                .find(|m| m.borrow().hmonitor == nearest_mon.hmonitor)
-                .unwrap();
-            let current_mon_arc_ref = arc_monitors
-                .iter()
-                .find(|m| m.borrow().hmonitor == monitor.hmonitor)
-                .unwrap();
-            let mut current_mon_arc = current_mon_arc_ref.borrow_mut();
-            current_mon_arc
-                .neighbors
-                .insert(direction.clone(), Arc::clone(nearest_mon_arc));
-            // debug!(
-            //     "Found neighbor for '{}': '{}'({}) distance {}",
-            //     monitor.name, name, direction, nearest_distance
-            // );
-        }
-    });
-    return arc_monitors;
 }

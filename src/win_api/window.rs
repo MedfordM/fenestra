@@ -179,21 +179,6 @@ pub fn create_window(
     };
 }
 
-pub fn handle_window_events() {
-    let mut message: MSG = MSG::default();
-    while get_message(&mut message, unsafe { HWND(HANDLE) }).into() {
-        unsafe {
-            let _ = TranslateMessage(&message);
-        }
-        unsafe {
-            DispatchMessageA(&message);
-        }
-        if message.message == WM_NULL {
-            hooks::unset_hooks();
-        }
-    }
-}
-
 pub fn get_foreground_handle() -> HWND {
     unsafe {
         let result = GetForegroundWindow();
@@ -425,7 +410,7 @@ fn load_cursor() -> HCURSOR {
     return handle_result(unsafe { LoadCursorW(None, IDC_ARROW) });
 }
 
-fn get_message(message: *mut MSG, window_handle: HWND) -> BOOL {
+pub(crate) fn get_message(message: *mut MSG, window_handle: HWND) -> BOOL {
     return unsafe { GetMessageA(message, window_handle, 0, 0) };
 }
 

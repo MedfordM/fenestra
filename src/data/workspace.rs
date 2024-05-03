@@ -1,24 +1,43 @@
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 
 use crate::data::common::axis::Axis;
 use crate::data::group::Group;
+use crate::data::monitor::Monitor;
 use log::debug;
 use windows::Win32::Foundation::{HWND, RECT};
 
 use crate::data::window::Window;
 use crate::win_api::window::get_foreground_window;
 
-#[derive(Clone)]
 pub struct Workspace {
     pub id: u32,
     pub focused: bool,
-    pub groups: Vec<Group>,
+    pub groups: Vec<Arc<Group>>,
     pub split_axis: Axis,
-    pub rect: RECT,
+    pub monitor: Arc<RefCell<Monitor>>,
 }
 
 impl Workspace {
+    pub fn new(id: u32, monitor: Arc<RefCell<Monitor>>) -> Workspace {
+        let focused = match id {
+            1 => true,
+            _ => false,
+        };
+        let groups = Vec::new();
+        let workspace = Workspace {
+            id,
+            focused,
+            groups,
+            split_axis: Axis::HORIZONTAL,
+            monitor,
+        };
+
+        return workspace;
+    }
+
     pub fn all_windows(&self) -> HashSet<Window> {
         let mut windows = HashSet::new();
         self.groups.iter().for_each(|group| {
@@ -114,7 +133,22 @@ impl Workspace {
         return result;
     }
 
-    fn group_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Group> {
+    pub fn window_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Window> {
+        if !self.contains_hwnd(hwnd) {
+            return None;
+        }
+        let group_result = self.group_from_hwnd(hwnd);
+        if group_result.is_none() {
+            return None;
+        }
+        let group = group_result.unwrap();
+        return group.get_window(hwnd);
+    }
+
+    pub fn group_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Group> {
+        if !self.contains_hwnd(hwnd) {
+            return None;
+        }
         return self
             .groups
             .iter_mut()

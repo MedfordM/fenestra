@@ -1,18 +1,19 @@
 use log::debug;
-use std::collections::HashSet;
+use std::sync::Arc;
 
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{WINDOWINFO, WINDOWPLACEMENT};
 
 use crate::data::common::direction::{Direction, DirectionCandidate, DirectionResult};
+use crate::data::group::Group;
 use crate::state::MONITORS;
 use crate::win_api::monitor::get_monitor_from_window;
 use crate::win_api::window::{
-    get_all, get_window, maximize_window, minimize_window, restore_window, set_foreground_window,
+    get_window, maximize_window, minimize_window, restore_window, set_foreground_window,
     set_window_pos,
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Window {
     pub title: String,
     pub hwnd: HWND,
@@ -26,6 +27,7 @@ pub struct Window {
     pub dpi: u32,
     pub style: i32,
     pub extended_style: i32,
+    pub group: Arc<Group>,
 }
 
 impl Eq for Window {}
@@ -37,10 +39,6 @@ impl std::hash::Hash for Window {
 }
 
 impl Window {
-    pub fn get_all_windows() -> HashSet<Window> {
-        return get_all();
-    }
-
     pub fn focus(&self) {
         set_foreground_window(self);
     }

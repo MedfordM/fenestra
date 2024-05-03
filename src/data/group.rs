@@ -1,12 +1,15 @@
 use crate::data::common::axis::Axis;
 use crate::data::window::Window;
+use crate::data::workspace::Workspace;
 use log::debug;
 use std::cell::RefCell;
+use std::sync::Arc;
 use windows::Win32::Foundation::{HWND, RECT};
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct Group {
     pub index: usize,
+    pub workspace: Arc<Workspace>,
     windows: RefCell<Vec<Window>>,
     pub split_axis: Axis,
 }
@@ -22,6 +25,17 @@ impl Group {
 
     pub fn get_windows(&self) -> &RefCell<Vec<Window>> {
         &self.windows
+    }
+
+    pub fn get_window(&self, hwnd: &HWND) -> Option<&mut Window> {
+        if !self.contains_hwnd(hwnd) {
+            return None;
+        }
+        return self
+            .windows
+            .borrow_mut()
+            .iter_mut()
+            .find(|window| window.hwnd == *hwnd);
     }
 
     pub fn swap_windows(&mut self, window_1: &mut Window, window_2: &mut Window) {

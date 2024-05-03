@@ -5,163 +5,140 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use windows::Win32::Foundation::{HWND, RECT};
 
-use crate::data::common::axis::Axis::VERTICAL;
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
 use crate::data::common::direction::{Direction, DirectionCandidate};
-use crate::data::group::Group;
 use crate::data::window::Window;
 use crate::data::workspace::Workspace;
-use crate::state::MONITORS;
-use crate::win_api::monitor::{get_monitor, get_monitor_from_window, get_windows_on_monitor};
-use crate::win_api::window::get_foreground_handle;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Monitor {
     pub hmonitor: HMONITOR,
     pub name: String,
     pub info: MONITORINFO,
     pub device_mode: DEVMODEA,
     pub scale: DEVICE_SCALE_FACTOR,
-    pub workspaces: Vec<Workspace>,
+    pub workspaces: Vec<Arc<RefCell<Workspace>>>,
     pub neighbors: HashMap<Direction, Arc<RefCell<Monitor>>>,
 }
 
-impl PartialEq for Monitor {
-    fn eq(&self, other: &Self) -> bool {
-        self.hmonitor == other.hmonitor || self.name == other.name
-    }
-}
-
 impl Monitor {
-    pub fn from(value: HMONITOR) -> Self {
-        get_monitor(value)
-    }
+    // pub fn current_workspace(&mut self) -> &mut Workspace {
+    //     return self
+    //         .workspaces
+    //         .iter_mut()
+    //         .find(|workspace| workspace.focused == true)
+    //         .expect("Unable to find current workspace");
+    // }
 
-    pub fn current() -> Arc<RefCell<Monitor>> {
-        let window_handle = get_foreground_handle();
-        let monitor_handle = get_monitor_from_window(window_handle);
-        return unsafe {
-            Arc::clone(
-                MONITORS
-                    .iter()
-                    .find(|monitor_ref| Arc::clone(monitor_ref).borrow().hmonitor == monitor_handle)
-                    .expect("Unable to get current monitor"),
-            )
-        };
-    }
+    // pub fn get_workspace(&mut self, id: u32) -> &mut Workspace {
+    //     return &mut self.workspaces[(id - 1) as usize];
+    // }
 
-    pub fn current_workspace(&mut self) -> &mut Workspace {
-        return self
-            .workspaces
-            .iter_mut()
-            .find(|workspace| workspace.focused == true)
-            .expect("Unable to find current workspace");
-    }
+    // pub fn focus_workspace(&mut self, id: u32) {
+    //     let current_workspace = self.current_workspace();
+    //     if id == current_workspace.id {
+    //         debug!("Skipping request to focus the current workspace");
+    //         return;
+    //     }
+    //     current_workspace.unfocus();
+    //     self.workspaces[(id - 1) as usize].focus();
+    // }
 
-    pub fn get_workspace(&mut self, id: u32) -> &mut Workspace {
-        return &mut self.workspaces[(id - 1) as usize];
-    }
+    // pub fn add_window_to_workspace(&mut self, id: u32, window: Window) {
+    //     let current_workspace = self.current_workspace();
+    //     if id == current_workspace.id {
+    //         return;
+    //     }
+    //     current_workspace.remove_window(&window);
+    //     self.workspaces[(id - 1) as usize].add_window(window);
+    // }
 
-    pub fn focus_workspace(&mut self, id: u32) {
-        let current_workspace = self.current_workspace();
-        if id == current_workspace.id {
-            debug!("Skipping request to focus the current workspace");
-            return;
-        }
-        current_workspace.unfocus();
-        self.workspaces[(id - 1) as usize].focus();
-    }
+    // fn workspace_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Workspace> {
+    //     if !self.contains_hwnd(hwnd) {
+    //         return None;
+    //     }
+    //     return self
+    //         .workspaces
+    //         .iter_mut()
+    //         .find(|workspace| workspace.contains_hwnd(hwnd));
+    // }
 
-    pub fn add_window_to_workspace(&mut self, id: u32, window: Window) {
-        let current_workspace = self.current_workspace();
-        if id == current_workspace.id {
-            return;
-        }
-        current_workspace.remove_window(&window);
-        self.workspaces[(id - 1) as usize].add_window(window);
-    }
+    // pub fn workspace_from_window(&mut self, window: &Window) -> Option<&mut Workspace> {
+    //     return self.workspace_from_hwnd(&window.hwnd);
+    // }
 
-    fn workspace_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Workspace> {
-        if !self.contains_hwnd(hwnd) {
-            return None;
-        }
-        return self
-            .workspaces
-            .iter_mut()
-            .find(|workspace| workspace.contains_hwnd(hwnd));
-    }
+    // pub fn init_workspaces(&self) -> Vec<Workspace> {
+    //     return workspaces;
+    // }
 
-    pub fn workspace_from_window(&mut self, window: &Window) -> Option<&mut Workspace> {
-        return self.workspace_from_hwnd(&window.hwnd);
-    }
+    // pub fn contains_window(&self, window: &Window) -> bool {
+    //     return self.contains_hwnd(&window.hwnd);
+    // }
 
-    pub fn init_workspaces(hmonitor: HMONITOR, rect: RECT) -> Vec<Workspace> {
-        let mut workspaces: Vec<Workspace> = vec![];
-        let default_workspace: Workspace = Workspace {
-            id: 1,
-            focused: true,
-            rect,
-            split_axis: VERTICAL,
-            groups: vec![Group::new(0, get_windows_on_monitor(hmonitor), VERTICAL)],
-        };
-        workspaces.push(default_workspace);
-        for i in 2..10 {
-            let workspace: Workspace = Workspace {
-                id: i,
-                focused: false,
-                rect,
-                split_axis: VERTICAL,
-                groups: vec![Group::new(0, Vec::new(), VERTICAL)],
-            };
-            workspaces.push(workspace);
-        }
-        return workspaces;
-    }
+    // pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
+    //     return self.all_windows().iter().any(|window| window.hwnd == *hwnd);
+    // }
 
-    pub fn contains_window(&self, window: &Window) -> bool {
-        return self.contains_hwnd(&window.hwnd);
-    }
+    // pub fn add_window(&mut self, window: Window) -> bool {
+    //     let current_workspace = self.current_workspace();
+    //     return current_workspace.add_window(window);
+    // }
 
-    pub fn contains_hwnd(&self, hwnd: &HWND) -> bool {
-        return self.all_windows().iter().any(|window| window.hwnd == *hwnd);
-    }
+    // pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
+    //     if !self.contains_hwnd(hwnd) {
+    //         return false;
+    //     }
+    //     let workspace = self.workspace_from_hwnd(hwnd);
+    //     if workspace.is_none() {
+    //         return false;
+    //     }
+    //     return workspace.unwrap().remove_hwnd(hwnd);
+    // }
 
-    pub fn add_window(&mut self, window: Window) -> bool {
-        let current_workspace = self.current_workspace();
-        return current_workspace.add_window(window);
-    }
+    // pub fn remove_window(&mut self, window: &Window) -> bool {
+    //     if !self.contains_window(window) {
+    //         return false;
+    //     }
+    //     let workspace = self.workspace_from_hwnd(&window.hwnd);
+    //     if workspace.is_none() {
+    //         return false;
+    //     }
+    //     return workspace.unwrap().remove_window(window);
+    // }
 
-    pub fn remove_hwnd(&mut self, hwnd: &HWND) -> bool {
-        if !self.contains_hwnd(hwnd) {
-            return false;
-        }
-        let workspace = self.workspace_from_hwnd(hwnd);
-        if workspace.is_none() {
-            return false;
-        }
-        return workspace.unwrap().remove_hwnd(hwnd);
-    }
+    // pub fn all_windows(&self) -> HashSet<Window> {
+    //     let mut all_windows: HashSet<Window> = HashSet::new();
+    //     self.workspaces.iter().for_each(|workspace| {
+    //         all_windows.extend(workspace.all_windows().clone());
+    //     });
+    //     return all_windows;
+    // }
 
-    pub fn remove_window(&mut self, window: &Window) -> bool {
-        if !self.contains_window(window) {
-            return false;
-        }
-        let workspace = self.workspace_from_hwnd(&window.hwnd);
-        if workspace.is_none() {
-            return false;
-        }
-        return workspace.unwrap().remove_window(window);
-    }
+    // pub fn window_from_hwnd(&mut self, hwnd: &HWND) -> Option<&mut Window> {
+    //     if !self.contains_hwnd(hwnd) {
+    //         return None;
+    //     }
+    //     let workspace = self.workspace_from_hwnd(hwnd).unwrap();
+    //     let group = workspace.group_from_hwnd(hwnd).unwrap();
+    //     return group.get_window(hwnd);
+    // }
 
-    pub fn all_windows(&self) -> HashSet<Window> {
-        let mut all_windows: HashSet<Window> = HashSet::new();
-        self.workspaces.iter().for_each(|workspace| {
-            all_windows.extend(workspace.all_windows().clone());
-        });
-        return all_windows;
-    }
+    // pub fn move_window_in_direction(&mut self, hwnd: &HWND, direction: &Direction) {
+    //     let workspace_result = self.workspace_from_hwnd(hwnd);
+    //     if workspace_result.is_none() {
+    //         return;
+    //     }
+    //     let workspace = workspace_result.unwrap();
+    //     let window_result = workspace.window_from_hwnd(hwnd);
+    //     if window_result.is_none() {
+    //         return;
+    //     }
+    //     let window = window_result.unwrap();
+    //     window.move_in_direction(direction);
+    //     workspace.arrange_windows();
+    // }
 
     pub fn create_nearest_candidate(self, direction: &Direction) -> DirectionCandidate<Monitor> {
         let monitor_rect = match direction {
@@ -189,6 +166,12 @@ impl Monitor {
             offset_x: None,
             offset_y: None,
         }
+    }
+}
+
+impl PartialEq for Monitor {
+    fn eq(&self, other: &Self) -> bool {
+        self.hmonitor == other.hmonitor || self.name == other.name
     }
 }
 
