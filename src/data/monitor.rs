@@ -1,16 +1,9 @@
-use log::debug;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
-use std::sync::Arc;
-use windows::Win32::Foundation::{HWND, RECT};
+use std::collections::HashMap;
 
 use windows::Win32::Graphics::Gdi::{DEVMODEA, HMONITOR, MONITORINFO};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 
-use crate::data::common::direction::{Direction, DirectionCandidate};
-use crate::data::window::Window;
-use crate::data::workspace::Workspace;
+use crate::data::common::direction::Direction;
 
 #[derive(Clone)]
 pub struct Monitor {
@@ -19,8 +12,9 @@ pub struct Monitor {
     pub info: MONITORINFO,
     pub device_mode: DEVMODEA,
     pub scale: DEVICE_SCALE_FACTOR,
-    pub workspaces: Vec<Arc<RefCell<Workspace>>>,
-    pub neighbors: HashMap<Direction, Arc<RefCell<Monitor>>>,
+    pub neighbors: HashMap<Direction, Vec<HMONITOR>>,
+    pub workspaces: Vec<usize>,
+    pub focused: bool
 }
 
 impl Monitor {
@@ -139,48 +133,10 @@ impl Monitor {
     //     window.move_in_direction(direction);
     //     workspace.arrange_windows();
     // }
-
-    pub fn create_nearest_candidate(self, direction: &Direction) -> DirectionCandidate<Monitor> {
-        let monitor_rect = match direction {
-            Direction::LEFT | Direction::RIGHT => RECT {
-                left: unsafe { self.device_mode.Anonymous1.Anonymous2 }
-                    .dmPosition
-                    .x,
-                top: 0,
-                bottom: 0,
-                right: 0,
-            },
-            Direction::UP | Direction::DOWN => RECT {
-                left: 0,
-                top: unsafe { self.device_mode.Anonymous1.Anonymous2 }
-                    .dmPosition
-                    .y,
-                bottom: 0,
-                right: 0,
-            },
-        };
-        DirectionCandidate {
-            name: String::from(&self.name),
-            object: self,
-            rect: monitor_rect,
-            offset_x: None,
-            offset_y: None,
-        }
-    }
 }
 
 impl PartialEq for Monitor {
     fn eq(&self, other: &Self) -> bool {
-        self.hmonitor == other.hmonitor || self.name == other.name
-    }
-}
-
-impl Debug for Monitor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}: {:?}, {:?}, Neighbors: {:?}",
-            self.name, self.info.rcWork, self.workspaces, self.neighbors
-        )
+        self.hmonitor == other.hmonitor
     }
 }

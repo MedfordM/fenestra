@@ -1,21 +1,27 @@
 use crate::data::common::state::AppState;
 use crate::data::key::Keybind;
 use crate::data::monitor::Monitor;
-use crate::hooks;
+use crate::{hooks, win_api};
 use crate::state::init;
 use std::cell::RefCell;
 use std::sync::Arc;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{DispatchMessageA, TranslateMessage, MSG, WM_NULL};
+use crate::state::management::group_manager::GroupManager;
+use crate::state::management::window_manager::WindowManager;
 
 pub struct StateManager {
     state: AppState,
+    window_manager: WindowManager,
+    group_manager: GroupManager,
 }
 
 impl StateManager {
     pub fn new() -> Self {
         Self {
             state: init::application(),
+            window_manager: WindowManager::new(Vec::new()),
+            group_manager: GroupManager::new(Vec::new())
         }
     }
 
@@ -37,7 +43,7 @@ impl StateManager {
 
     pub fn handle_window_events(&self) {
         let mut message: MSG = MSG::default();
-        while crate::win_api::window::get_message(&mut message, unsafe { self.state.handle }).into()
+        while win_api::window::get_message(&mut message, unsafe { self.state.handle }).into()
         {
             unsafe {
                 let _ = TranslateMessage(&message);

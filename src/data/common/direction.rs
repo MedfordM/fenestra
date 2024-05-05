@@ -1,11 +1,11 @@
-use log::debug;
-use std::f32;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use windows::Win32::Foundation::{POINT, RECT};
 
 use crate::data::common::direction::Direction::{DOWN, LEFT, RIGHT, UP};
+use crate::data::monitor::Monitor;
+use crate::data::window::Window;
 
 #[derive(Clone, PartialEq, Hash, Eq)]
 pub enum Direction {
@@ -15,26 +15,72 @@ pub enum Direction {
     RIGHT,
 }
 
-pub struct DirectionCandidate<T> {
-    pub object: T,
+pub struct DirectionCandidate {
+    pub id: isize,
     pub name: String,
     pub rect: RECT,
     pub offset_x: Option<u32>,
     pub offset_y: Option<u32>,
 }
 
-pub struct DirectionResult<T> {
-    pub object: T,
+impl From<&Window> for DirectionCandidate {
+    fn from(window: &Window) -> DirectionCandidate {
+        DirectionCandidate {
+            id: window.hwnd.0,
+            name: String::from(&window.title),
+            rect: RECT {
+                left: window.info.rcWindow.left + window.info.cxWindowBorders as i32,
+                top: window.info.rcWindow.top + window.info.cyWindowBorders as i32,
+                right: window.info.rcWindow.right,
+                bottom: window.info.rcWindow.bottom,
+            },
+            offset_x: Some(window.info.cxWindowBorders),
+            offset_y: Some(window.info.cyWindowBorders),
+        }
+    }
+}
+
+impl From<&Monitor> for DirectionCandidate {
+    fn from(monitor: &Monitor) -> DirectionCandidate {
+        DirectionCandidate {
+            id: monitor.hmonitor.0,
+            name: String::from(&monitor.name),
+            rect: monitor.info.rcMonitor,
+            // rect: match direction {
+            //     LEFT | RIGHT => RECT {
+            //         left: unsafe { monitor.device_mode.Anonymous1.Anonymous2 }.dmPosition.x,
+            //         top: 0,
+            //         bottom: 0,
+            //         right: 0,
+            //     },
+            //     UP | DOWN => RECT {
+            //         left: 0,
+            //         top: unsafe { monitor.device_mode.Anonymous1.Anonymous2 }.dmPosition.y,
+            //         bottom: 0,
+            //         right: 0,
+            //     },
+            // },
+            offset_x: None,
+            offset_y: None,
+        }
+    }
+}
+
+impl DirectionCandidate {
+}
+
+pub struct DirectionResult {
+    pub id: isize,
     pub distance: i32,
     point: POINT,
 }
 
 impl Direction {
-    pub fn find_nearest<T: Clone>(
+    pub fn find_nearest(
         &self,
-        origin: &DirectionCandidate<T>,
-        candidates: Vec<DirectionCandidate<T>>,
-    ) -> Option<DirectionResult<T>> {
+        origin: &DirectionCandidate,
+        candidates: Vec<DirectionCandidate>,
+    ) -> Option<DirectionResult> {
         /*
            Virtual Screen Coordinates:
            Lower  X values are in the left direction
@@ -50,7 +96,7 @@ impl Direction {
         //     "Attempting to find nearest({}) candidate from '{} at position {:?}'",
         //     self, origin.name, origin_point
         // );
-        let mut results: Vec<DirectionResult<T>> = Vec::new();
+        let mut results: Vec<DirectionResult> = Vec::new();
         candidates.into_iter().for_each(|candidate| {
             let candidate_offset_x = candidate.offset_x.unwrap_or_default() as i32;
             let candidate_offset_y = candidate.offset_y.unwrap_or_default() as i32;
@@ -115,7 +161,7 @@ impl Direction {
             let distance: f64 = ((delta_x_pow + delta_y_pow) as f64).sqrt();
             // debug!("Calculated '{}' distance as {}", candidate.0, &distance);
             results.push(DirectionResult {
-                object: candidate.object,
+                id: candidate.id,
                 distance: distance as i32,
                 point: candidate_point,
             });
@@ -126,7 +172,7 @@ impl Direction {
         results.sort_by(|a, b| a.distance.cmp(&b.distance));
         let final_result = results.remove(0);
         return Some(DirectionResult {
-            object: final_result.object,
+            id: final_result.id,
             distance: final_result.distance,
             point: final_result.point,
         });

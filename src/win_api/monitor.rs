@@ -58,13 +58,12 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             info: monitor_info.monitorInfo,
             device_mode,
             scale,
-            workspaces: Vec::new(),
             neighbors: HashMap::new(),
         }
     }
 }
 
-pub fn get_hmonitor_from_window(hwnd: HWND) -> HMONITOR {
+pub fn hmonitor_from_hwnd(hwnd: HWND) -> HMONITOR {
     let result = unsafe { MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) };
     if result == HMONITOR::default() {
         error!("Unable to get monitor from window");

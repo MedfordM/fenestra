@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::ffi::CString;
 
-use log::{debug, error};
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM,
@@ -20,21 +20,19 @@ use windows::Win32::UI::Shell::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu,
-    DispatchMessageA, GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo,
+    GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo,
     GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId,
     InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA,
-    SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, TranslateMessage, CS_HREDRAW,
+    SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, CS_HREDRAW,
     CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING,
     MSG, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE,
     SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
     WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
-    WM_DESTROY, WM_NULL, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
+    WM_DESTROY, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
     WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
-use crate::hooks;
-use crate::state::HANDLE;
 use crate::win_api::misc::{attach_thread, detach_thread, handle_result};
 
 pub fn set_dpi_awareness() {
@@ -179,7 +177,7 @@ pub fn create_window(
     };
 }
 
-pub fn get_foreground_handle() -> HWND {
+pub fn foreground_hwnd() -> HWND {
     unsafe {
         let result = GetForegroundWindow();
         if result == HWND::default() {
@@ -190,19 +188,13 @@ pub fn get_foreground_handle() -> HWND {
     };
 }
 
-pub fn get_foreground_window() -> Window {
-    let foreground_handle = get_foreground_handle();
-    return Window::from(foreground_handle).expect("Unable to get foreground window");
-}
-
-pub fn set_foreground_window(app: &Window) {
+pub fn focus(hwnd: &HWND) -> bool {
     unsafe {
-        let current_window = GetWindowThreadProcessId(GetForegroundWindow(), None);
-        attach_thread(current_window);
-        //restore_window(app);
-        BringWindowToTop(app.hwnd).unwrap();
-        //let _ = ShowWindow(app.hwnd, SW_SHOW);
-        detach_thread(current_window);
+        let process_id = GetWindowThreadProcessId(hwnd.clone(), None);
+        attach_thread(process_id);
+        let result = BringWindowToTop(hwnd.clone());
+        detach_thread(process_id);
+        return result.is_ok();
     }
 }
 
@@ -213,13 +205,9 @@ fn get_style(handle: HWND) -> i32 {
 fn get_extended_style(handle: HWND) -> i32 {
     return get_window_info(handle, GWL_EXSTYLE);
 }
-
-// pub fn set_transparent(hwnd: HWND) {
-//     handle_result(unsafe { SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY) });
-// }
-
+    
 static mut WINDOWS: Vec<Window> = Vec::new();
-pub fn get_all() -> HashSet<Window> {
+pub fn get_all() -> Vec<Window> {
     unsafe {
         WINDOWS.clear();
     }
@@ -234,7 +222,10 @@ pub fn get_all() -> HashSet<Window> {
         EnumDesktopWindows(None, Some(enum_windows_callback), LPARAM::default())
     });
     unsafe {
-        return HashSet::from_iter(WINDOWS.iter().cloned());
+        let mut windows = WINDOWS.clone();
+        windows.sort_by(|a, b| a.hwnd.0.partial_cmp(&b.hwnd.0).unwrap());
+        Vec::dedup(&mut windows);
+        return windows;
     }
 }
 
@@ -284,81 +275,39 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
         dpi,
         style,
         extended_style,
+        focused: false,
     });
 }
 
-pub fn set_window_pos(window: &Window, offset: i32) {
-    // let mut dpi_adjusted_window = window.clone();
-    // adjust_window_for_dpi(&mut dpi_adjusted_window, window.dpi);
-    let adj_left: i32 = window.rect.left + offset;
-    let width: i32 = window.rect.right - adj_left - offset;
-    let height: i32 = window.rect.bottom - window.rect.top - offset;
-    // let adj_left: i32 = dpi_adjusted_window.rect.left + offset;
-    // let width: i32 = dpi_adjusted_window.rect.right - adj_left - offset;
-    // let height: i32 = dpi_adjusted_window.rect.bottom - window.rect.top - offset;
-
-    debug!(
-        "Setting '{}' position to {{X: {}, Y: {}, width: {}, height: {}}}",
-        window.title, adj_left, window.rect.top, width, height
-    );
-
+pub fn set_position(hwnd: &HWND, position: RECT) {
     handle_result(unsafe {
         SetWindowPos(
-            window.hwnd,
+            hwnd.clone(),
             None,
-            adj_left,
+            position.left,
             // dpi_adjusted_window.rect.top,
-            window.rect.top,
-            width,
-            height,
+            position.top,
+            position.right,
+            position.bottom,
             // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
             SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW,
         )
     });
 }
 
-pub fn minimize_window(window: &Window) {
-    // TODO: Focus the nearest window here
-    let result = unsafe { ShowWindow(window.hwnd, SW_SHOWMINNOACTIVE) };
-    if !result.as_bool() {
-        error!("Unable to minimize window {}", window.title);
-    } else {
-        debug!("Minimized {}", window.title);
-    }
+pub fn minimize(hwnd: &HWND) -> bool { 
+    unsafe { ShowWindow(hwnd.clone(), SW_SHOWMINNOACTIVE) }.as_bool()
 }
 
-pub fn maximize_window(window: &Window) {
-    let result = unsafe { ShowWindow(window.hwnd, SW_MAXIMIZE) };
-    if !result.as_bool() {
-        error!("Unable to maximize window {}", window.title);
-    } else {
-        debug!("Maximized {}", window.title);
-    }
+pub fn maximize(hwnd: &HWND) -> bool {
+    unsafe { ShowWindow(hwnd.clone(), SW_MAXIMIZE) }.as_bool()
 }
 
-pub fn restore_window(window: &Window) {
-    let result = unsafe { ShowWindow(window.hwnd, SW_RESTORE) };
-    if !result.as_bool() {
-        error!("Unable to restore window {}", window.title);
-    } else {
-        debug!("Restored {}", window.title);
-    }
+pub fn restore(hwnd: &HWND) -> bool {
+    unsafe { ShowWindow(hwnd.clone(), SW_RESTORE) }.as_bool()
 }
 
-// pub fn set_window_placement(window: &Window, new_placement: &WINDOWPLACEMENT) {
-//     let placement: WINDOWPLACEMENT = WINDOWPLACEMENT {
-//         length: new_placement.length,
-//         flags: WPF_ASYNCWINDOWPLACEMENT,
-//         showCmd: SW_SHOW.0 as u32,
-//         ptMinPosition: new_placement.ptMinPosition,
-//         ptMaxPosition: new_placement.ptMaxPosition,
-//         rcNormalPosition: new_placement.rcNormalPosition,
-//     };
-//     debug!("Setting '{}' position to {:?}", &window.title, &placement);
-//     handle_result(unsafe { SetWindowPlacement(window.hwnd, &placement as *const WINDOWPLACEMENT) });
-// }
-
-pub fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
+fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
     let mut window_placement: WINDOWPLACEMENT = WINDOWPLACEMENT::default();
     let _ = handle_result(unsafe { GetWindowPlacement(hwnd, &mut window_placement) });
     return window_placement;
@@ -422,15 +371,3 @@ fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
 fn get_dpi(hwnd: HWND) -> u32 {
     return unsafe { GetDpiForWindow(hwnd) };
 }
-
-// fn adjust_window_for_dpi(window: &mut Window, dpi: u32) {
-//     return handle_result(unsafe {
-//         AdjustWindowRectExForDpi(
-//             &mut window.rect,
-//             WINDOW_STYLE(window.style as u32),
-//             BOOL::from(window.style as u32 & WS_SYSMENU.0 == 0),
-//             WINDOW_EX_STYLE(window.extended_style as u32),
-//             dpi,
-//         )
-//     });
-// }
