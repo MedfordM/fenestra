@@ -8,24 +8,29 @@ impl WorkspaceManager {
     pub fn new(workspaces: Vec<Workspace>) -> Self {
         Self { workspaces }
     }
-
-    // TODO: This should take a vector of workspaces belonging to a monitor
-    pub fn get_current_workspace(&self, workspace_ids: &Vec<usize>) -> usize {
-        self.workspaces.iter().filter(|workspace| workspace_ids.contains(&workspace.index))
-            .position(|workspace| workspace.focused)
-            .expect("Unable to fetch current workspace for requested ids")
+    
+    pub fn active_workspace(&self, workspace_ids: &Vec<usize>) -> usize {
+        self.workspaces
+            .iter()
+            .filter(|workspace| workspace_ids.contains(&workspace.index))
+            .position(|workspace| workspace.active)
+            .expect("Unable to fetch active workspace for requested workspace ids")
     }
     
-    pub fn focus_workspace(&mut self, workspace_id: usize) -> &Vec<usize> {
-        let workspace = self.get_workspace(workspace_id);
-        workspace.focused = true;
-        return self.groups_for_workspace(workspace_id);
+    pub fn workspace_for_group(&self, group_id: usize) -> usize {
+        self.workspaces
+            .iter()
+            .position(|workspace| workspace.groups.contains(&group_id))
+            .expect("Unable to fetch workspace for requested group")
     }
-    
-    // TODO: Unfocus workspace
     
     pub fn groups_for_workspace(&self, workspace_id: usize) -> &Vec<usize> {
         &self.workspaces[workspace_id].groups
+    }
+    
+    pub fn toggle_active(&mut self, workspace_id: usize) {
+        let workspace = self.get_workspace(workspace_id);
+        workspace.active = !workspace.active;
     }
     
     fn get_workspace(&mut self, workspace_id: usize) -> &mut Workspace {

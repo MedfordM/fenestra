@@ -1,28 +1,19 @@
-use crate::data::key::Keybind;
-use crate::data::monitor::Monitor;
-use std::cell::RefCell;
-use std::sync::Arc;
 use windows::Win32::Foundation::HWND;
+use crate::data::hook::Hook;
 
 pub struct AppState {
     pub handle: HWND,
-    pub hooks: Vec<(String, isize)>,
-    pub keybinds: Vec<Keybind>,
-    pub monitors: Vec<Arc<RefCell<Monitor>>>,
+    pub hooks: Vec<Box<dyn Hook>>,
 }
 
 impl AppState {
     pub fn new(
         handle: HWND,
-        hooks: Vec<(String, isize)>,
-        keybinds: Vec<Keybind>,
-        monitors: Vec<Arc<RefCell<Monitor>>>,
+        hooks: Vec<Box<dyn Hook>>,
     ) -> Self {
         Self {
             handle,
-            monitors,
             hooks,
-            keybinds,
         }
     }
 }

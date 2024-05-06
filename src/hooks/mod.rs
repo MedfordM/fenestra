@@ -1,28 +1,19 @@
 use log::debug;
-use windows::Win32::UI::{Accessibility::HWINEVENTHOOK, WindowsAndMessaging::HHOOK};
-
-use crate::win_api::hook::{unset_event_hook, unset_hook};
+use crate::data::hook::Hook;
+use crate::hooks::keyboard::KeyboardHook;
+use crate::hooks::window::EventHook;
 
 pub mod keyboard;
 pub mod window;
 
-pub fn set_hooks() -> Vec<(String, isize)> {
-    let mut hooks: Vec<(String, isize)> = Vec::new();
-    hooks.push((String::from("keyboard"), keyboard::init_hook().0));
-    hooks.push((String::from("window"), window::init_hook().0));
+pub fn set_hooks() -> Vec<Box<dyn Hook>> {
+    let mut hooks: Vec<Box<dyn Hook>> = vec![Box::new(KeyboardHook::new()), Box::new(EventHook::new())];
+    hooks.iter_mut().for_each(|hook| hook.set());
     debug!("Set hooks");
     return hooks;
 }
 
-pub fn unset_hooks(hooks: &Vec<(String, isize)>) {
-    unsafe {
-        hooks.iter().for_each(|hook| {
-            match hook.0.as_str() {
-                "window" => unset_event_hook(HWINEVENTHOOK(hook.1)),
-                "keyboard" => unset_hook(HHOOK(hook.1)),
-                _ => (),
-            };
-        })
-    };
+pub fn unset_hooks(hooks: &mut Vec<Box<dyn Hook>>) {
+    hooks.iter_mut().for_each(|hook| hook.remove());
     debug!("Unset hooks");
 }

@@ -1,22 +1,16 @@
 use std::str::FromStr;
+use crate::data::action::Action;
 
-use crate::data::action::Execute;
 use crate::data::common::direction::Direction;
-use crate::win_api::window::get_foreground_window;
+use crate::state::management::action_manager::ActionManager;
 
-#[derive(Clone, PartialEq)]
 pub struct FocusWindow {
     pub direction: Direction,
 }
 
-impl Execute for FocusWindow {
-    fn execute(&self) {
-        let mut current_window = get_foreground_window();
-        let nearest_result = current_window.find_nearest_in_direction(&self.direction);
-        if nearest_result.is_some() {
-            let target_window = nearest_result.unwrap();
-            target_window.focus();
-        }
+impl Action for FocusWindow {
+    fn execute(&mut self, action_manager: &mut ActionManager) {
+        unsafe { action_manager.focus_window_in_direction(self.direction.clone()); }
     }
 }
 
@@ -35,11 +29,5 @@ impl FromStr for FocusWindow {
         Ok(FocusWindow {
             direction: direction.unwrap(),
         })
-    }
-}
-
-impl std::fmt::Debug for FocusWindow {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Focus window {}", self.direction)
     }
 }

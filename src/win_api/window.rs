@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::ffi::CString;
 
 use log::error;
@@ -275,7 +274,6 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
         dpi,
         style,
         extended_style,
-        focused: false,
     });
 }
 

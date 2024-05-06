@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -10,14 +9,31 @@ use windows::Win32::{
     },
 };
 
-use crate::state::MONITORS;
-use crate::win_api::monitor::{
-    ensure_unique_window_state, get_monitor_from_window, revalidate_windows,
-};
-use crate::{data::window::Window, win_api::hook::set_event_hook};
+use crate::data::hook::Hook;
+use crate::state::STATE_MANAGER;
+use crate::win_api;
 
-pub fn init_hook() -> HWINEVENTHOOK {
-    return set_event_hook(callback);
+pub struct EventHook {
+    hook: HWINEVENTHOOK,
+}
+
+impl EventHook {
+    pub fn new() -> Self {
+        Self {
+            hook: HWINEVENTHOOK::default()
+        }
+    }
+}
+
+impl Hook for EventHook {
+    fn set(&mut self) {
+        self.hook = win_api::hook::set_event_hook(callback);
+    }
+
+    fn remove(&mut self) {
+        win_api::hook::unset_event_hook(self.hook);
+        self.hook = HWINEVENTHOOK::default();
+    }
 }
 
 pub unsafe extern "system" fn callback(
@@ -31,32 +47,13 @@ pub unsafe extern "system" fn callback(
 ) {
     match event {
         EVENT_SYSTEM_MINIMIZESTART => {
-            let window_result = Window::from(hwnd);
+            let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
-
-            let window = window_result.unwrap();
-            /*
-               In the case that the user manually minimized the window (not using fenestra),
-               the now-current window is the one that had focus before the minimized window.
-
-               Because of this, the now-current monitor is NOT guaranteed to be the one that
-               the user minimized the window on, making it necessary to manually find the
-               monitor that contains the window that initiated this event
-            */
-            let monitor_ref = Arc::clone(
-                MONITORS
-                    .iter()
-                    .find(|monitor| monitor.borrow().contains_window(&window))
-                    .unwrap(),
-            );
-            let mut monitor = monitor_ref.borrow_mut();
-            // If the user minimized the window manually, ignore it until it is focused again
-            if monitor.current_workspace().contains_window(&window) {
-                // debug!("Removing minimized window '{}' from state", window.title);
-                monitor.remove_window(&window);
-                monitor.current_workspace().arrange_windows();
+            let new_positions = STATE_MANAGER.group_manager.remove_window(hwnd);
+            for (hwnd, position) in new_positions {
+                STATE_MANAGER.window_manager.set_position(hwnd, position, 0);
             }
         }
         // EVENT_SYSTEM_MINIMIZEEND => {
@@ -72,7 +69,6 @@ pub unsafe extern "system" fn callback(
         //     monitor.current_workspace().arrange_windows();
         // }
         EVENT_SYSTEM_FOREGROUND => {
-            // TODO: Add a border to the newly focused window here
             if hwnd.0 == 0 {
                 return;
             }
@@ -85,25 +81,20 @@ pub unsafe extern "system" fn callback(
                 return;
             }
 
-            let window_result = Window::from(hwnd);
+            let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
             // debug!("Foreground window was updated: {}", window.title);
-            revalidate_windows();
-            let window = window_result.unwrap();
-            let current_monitor_hmonitor = get_monitor_from_window(hwnd);
-            ensure_unique_window_state(window, current_monitor_hmonitor);
+            STATE_MANAGER.add_window(hwnd);
+            STATE_MANAGER.validate();
         }
         EVENT_SYSTEM_MOVESIZEEND => {
-            let window_result = Window::from(hwnd);
+            let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
-            revalidate_windows();
-            let window = window_result.unwrap();
-            let current_monitor_hmonitor = get_monitor_from_window(hwnd);
-            ensure_unique_window_state(window, current_monitor_hmonitor);
+            STATE_MANAGER.validate();
         }
         _ => (),
     }

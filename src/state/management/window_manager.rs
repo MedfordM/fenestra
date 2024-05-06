@@ -83,6 +83,28 @@ impl WindowManager {
         return None;
     }
     
+    pub fn validate_windows(&mut self) -> (Vec<HWND>, Vec<HWND>) {
+        let mut removed_windows = Vec::new();
+        for i in 0..self.windows.len() {
+            let hwnd = self.windows[i].hwnd;
+            if win_api::window::get_window(hwnd).is_none() {
+                self.windows.retain(|window| window.hwnd != hwnd);
+                removed_windows.push(hwnd);
+            }
+        }
+        let mut added_windows = Vec::new();
+        for window in win_api::window::get_all() {
+            if self.windows.contains(&window) {
+                // Update the window state
+                self.windows.retain(|w| w != &window);
+                self.windows.push(window);
+            } else {
+                added_windows.push(window.hwnd);
+            }
+        }
+        return (removed_windows, added_windows);
+    }
+    
     fn get_window(&mut self, hwnd: HWND) -> &mut Window {
         self.windows
             .iter_mut()

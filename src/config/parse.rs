@@ -106,12 +106,12 @@ pub fn parse_content(config_path: &Path) -> Vec<Keybind> {
                 );
                 return;
             }
-            let action: WindowManagerAction =
-                WindowManagerAction::from_str(config_action.as_str()).unwrap();
-            let keys = key_combo
+            let action= WindowManagerAction::from_str(config_action.as_str()).unwrap();
+            let mut keys: Vec<Key> = key_combo
                 .iter()
                 .map(|key| Key::from_str(key.as_str()).unwrap())
                 .collect();
+            keys.sort();
             key_combos.push(Keybind::new(keys, action));
         });
     // debug!("Parsed config: {:?}", key_combos);

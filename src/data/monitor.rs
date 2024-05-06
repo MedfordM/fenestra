@@ -12,9 +12,8 @@ pub struct Monitor {
     pub info: MONITORINFO,
     pub device_mode: DEVMODEA,
     pub scale: DEVICE_SCALE_FACTOR,
-    pub neighbors: HashMap<Direction, Vec<HMONITOR>>,
+    pub neighbors: HashMap<Direction, HMONITOR>,
     pub workspaces: Vec<usize>,
-    pub focused: bool
 }
 
 impl Monitor {

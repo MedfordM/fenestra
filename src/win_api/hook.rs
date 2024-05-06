@@ -5,7 +5,7 @@ use windows::Win32::{Foundation::{HWND, LPARAM, LRESULT, WPARAM}, UI::{Accessibi
 
 use super::misc::handle_result;
 
-pub fn set_hook(hook_id: WINDOWS_HOOK_ID, callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT) -> HHOOK {
+pub fn set_window_hook(hook_id: WINDOWS_HOOK_ID, callback: unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT) -> HHOOK {
   return handle_result(unsafe {SetWindowsHookExA(hook_id, Some(callback), None, 0)});
 }
 
@@ -13,7 +13,7 @@ pub fn set_event_hook(callback: unsafe extern "system" fn(HWINEVENTHOOK, u32, HW
   return unsafe { SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_OBJECT_DESTROY, None, Some(callback), 0, 0, WINEVENT_OUTOFCONTEXT) };
 }
 
-pub fn unset_hook(hook: HHOOK) {
+pub fn unset_window_hook(hook: HHOOK) {
   let result = unsafe { UnhookWindowsHookEx(hook) };
   if result.is_err() {
       error!("Failed to unset hook");

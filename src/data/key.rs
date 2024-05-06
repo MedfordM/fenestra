@@ -8,8 +8,8 @@ use crate::win_api::keyboard::{get_key_code, get_key_name};
 // Key action
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum KeyAction {
-    UP,
-    DOWN,
+    PRESS,
+    RELEASE,
 }
 
 // action codes
@@ -19,9 +19,9 @@ const KEY_DOWN: usize = 0x0100;
 impl From<usize> for KeyAction {
     fn from(code: usize) -> Self {
         match code {
-            KEY_UP => KeyAction::UP,
-            KEY_DOWN => KeyAction::DOWN,
-            _ => KeyAction::DOWN,
+            KEY_UP => KeyAction::RELEASE,
+            KEY_DOWN => KeyAction::PRESS,
+            _ => KeyAction::RELEASE,
         }
     }
 }
@@ -29,8 +29,8 @@ impl From<usize> for KeyAction {
 impl std::fmt::Debug for KeyAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            KeyAction::UP => write!(f, "UP"),
-            KeyAction::DOWN => write!(f, "DOWN"),
+            KeyAction::RELEASE => write!(f, "UP"),
+            KeyAction::PRESS => write!(f, "DOWN"),
         }
     }
 }

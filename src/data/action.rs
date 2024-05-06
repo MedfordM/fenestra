@@ -4,24 +4,17 @@ use crate::actions::windows::focus::FocusWindow;
 use crate::actions::windows::r#move::MoveWindow;
 use crate::actions::workspaces::focus::FocusWorkspace;
 use crate::actions::workspaces::r#move::MoveToWorkspace;
+use crate::state::management::action_manager::ActionManager;
 
-#[derive(Clone, PartialEq)]
+pub trait Action {
+    fn execute(&self, action_manager: &mut ActionManager);
+}
+
 pub enum WindowManagerAction {
     FocusWindow(FocusWindow),
     MoveWindow(MoveWindow),
     FocusWorkspace(FocusWorkspace),
     MoveToWorkspace(MoveToWorkspace)
-}
-
-impl Execute for WindowManagerAction {
-    fn execute(&self) {
-        return match self {
-            WindowManagerAction::FocusWindow(action) => action.execute(),
-            WindowManagerAction::MoveWindow(action) => action.execute(),
-            WindowManagerAction::FocusWorkspace(action) => action.execute(),
-            WindowManagerAction::MoveToWorkspace(action) => action.execute(),
-        };
-    }
 }
 
 impl FromStr for WindowManagerAction {
@@ -41,17 +34,3 @@ impl FromStr for WindowManagerAction {
     }
 }
 
-impl std::fmt::Debug for WindowManagerAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        return match self {
-            WindowManagerAction::FocusWindow(action) => action.fmt(f),
-            WindowManagerAction::MoveWindow(action) => action.fmt(f),
-            WindowManagerAction::FocusWorkspace(action) => action.fmt(f),
-            WindowManagerAction::MoveToWorkspace(action) => action.fmt(f),
-        };
-    }
-}
-
-pub trait Execute {
-    fn execute(&self);
-}

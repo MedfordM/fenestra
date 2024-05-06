@@ -1,18 +1,16 @@
-use crate::data::action::Execute;
-use crate::data::monitor::Monitor;
 use log::error;
 use std::process::exit;
 use std::str::FromStr;
+use crate::data::action::Action;
+use crate::state::management::action_manager::ActionManager;
 
-#[derive(Clone, PartialEq)]
 pub struct FocusWorkspace {
-    pub id: u32,
+    pub id: usize,
 }
 
-impl Execute for FocusWorkspace {
-    fn execute(&self) {
-        let current_monitor = Monitor::current();
-        current_monitor.borrow_mut().focus_workspace(self.id);
+impl Action for FocusWorkspace {
+    fn execute(&self, action_manager: &mut ActionManager) {
+        unsafe { action_manager.focus_workspace(self.id - 1) };
     }
 }
 
@@ -24,7 +22,7 @@ impl FromStr for FocusWorkspace {
             return Err(());
         }
         let workspace_id_str = input_up.strip_prefix("FOCUS_WORKSPACE_").unwrap();
-        let workspace_id = u32::from_str(workspace_id_str);
+        let workspace_id = usize::from_str(workspace_id_str);
         if workspace_id.is_err() {
             error!("Unable to parse workspace id from {}", &workspace_id_str);
             exit(100);
@@ -32,11 +30,5 @@ impl FromStr for FocusWorkspace {
         Ok(FocusWorkspace {
             id: workspace_id.unwrap(),
         })
-    }
-}
-
-impl std::fmt::Debug for FocusWorkspace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Focus workspace {}", self.id)
     }
 }

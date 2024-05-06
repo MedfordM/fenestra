@@ -15,7 +15,6 @@ pub struct Window {
     pub dpi: u32,
     pub style: i32,
     pub extended_style: i32,
-    pub focused: bool
 }
 
 impl Eq for Window {}

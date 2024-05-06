@@ -1,21 +1,16 @@
 use std::str::FromStr;
+use crate::data::action::Action;
 
-use crate::data::action::Execute;
 use crate::data::common::direction::Direction;
-use crate::data::monitor::Monitor;
-use crate::win_api::window::get_foreground_handle;
+use crate::state::management::action_manager::ActionManager;
 
-#[derive(Clone, PartialEq)]
 pub struct MoveWindow {
     pub direction: Direction,
 }
 
-impl Execute for MoveWindow {
-    fn execute(&self) {
-        let hwnd = get_foreground_handle();
-        let monitor_ref = Monitor::current();
-        let mut monitor = monitor_ref.borrow_mut();
-        monitor.move_window_in_direction(&hwnd, &self.direction);
+impl Action for MoveWindow {
+    fn execute(&self, action_manager: &mut ActionManager) {
+        unsafe { action_manager.move_window_in_direction(self.direction.clone()) }
     }
 }
 
@@ -34,11 +29,5 @@ impl FromStr for MoveWindow {
         Ok(MoveWindow {
             direction: direction.unwrap(),
         })
-    }
-}
-
-impl std::fmt::Debug for MoveWindow {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Move window {}", self.direction)
     }
 }

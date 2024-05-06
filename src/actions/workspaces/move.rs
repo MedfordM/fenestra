@@ -2,25 +2,16 @@ use std::process::exit;
 use std::str::FromStr;
 
 use log::error;
+use crate::data::action::Action;
+use crate::state::management::action_manager::ActionManager;
 
-use crate::data::action::Execute;
-use crate::data::monitor::Monitor;
-use crate::win_api::window::get_foreground_window;
-
-#[derive(Clone, PartialEq)]
 pub struct MoveToWorkspace {
-    pub id: u32,
+    pub id: usize,
 }
 
-impl Execute for MoveToWorkspace {
-    fn execute(&self) {
-        let window = get_foreground_window();
-        let monitor_ref = Monitor::current();
-        let mut monitor = monitor_ref.borrow_mut();
-        monitor.remove_window(&window);
-        window.minimize();
-        monitor.add_window_to_workspace(self.id, window);
-        monitor.current_workspace().arrange_windows();
+impl Action for MoveToWorkspace {
+    fn execute(&self, action_manager: &mut ActionManager) {
+        action_manager.move_to_workspace(self.id)
     }
 }
 
@@ -32,7 +23,7 @@ impl FromStr for MoveToWorkspace {
             return Err(());
         }
         let workspace_id_str = input_up.strip_prefix("SEND_TO_WORKSPACE_").unwrap();
-        let workspace_id = u32::from_str(workspace_id_str);
+        let workspace_id = usize::from_str(workspace_id_str);
         if workspace_id.is_err() {
             error!("Unable to parse workspace id from {}", &workspace_id_str);
             exit(100);
@@ -40,11 +31,5 @@ impl FromStr for MoveToWorkspace {
         Ok(MoveToWorkspace {
             id: workspace_id.unwrap(),
         })
-    }
-}
-
-impl std::fmt::Debug for MoveToWorkspace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Move window to workspace {}", self.id)
     }
 }

@@ -12,9 +12,12 @@ impl MonitorManager {
         Self { monitors }
     }
     
+    pub fn get_current(&self) -> HMONITOR {
+        win_api::monitor::hmonitor_from_hwnd(win_api::window::foreground_hwnd())
+    }
+    
     fn get_current_monitor(&mut self) -> &mut Monitor {
-        let hwnd = win_api::window::foreground_hwnd();
-        let hmonitor = win_api::monitor::hmonitor_from_hwnd(hwnd);
+        let hmonitor = self.get_current();
         return self.monitors
             .iter_mut()
             .find(|monitor| monitor.hmonitor == hmonitor)

@@ -10,24 +10,24 @@ impl GroupManager {
     pub fn new(groups: Vec<Group>) -> Self {
         Self { groups }
     }
-
-    pub fn get_group_by_hwnd(&mut self, hwnd: HWND) -> usize {
+    
+    pub fn group_for_hwnd(&self, hwnd: HWND) -> usize {
         self.groups
-            .iter_mut()
+            .iter()
             .position(|group| group.windows.contains(&hwnd))
             .expect("Unable to fetch group for the requested hwnd")
     }
 
-    // TODO: This should take a vector of groups belonging to a workspace
     pub fn add_window(&mut self, group_index: usize, hwnd: HWND) -> Vec<(HWND, RECT)> {
         self.groups[group_index].windows.push(hwnd);
         return self.calculate_window_positions(vec![group_index]);
     }
 
-    // TODO: This should take a vector of groups belonging to a workspace
-    pub fn remove_window(&mut self, hwnd: HWND) {
-        let group = self.get_current_group();
+    pub fn remove_window(&mut self, hwnd: HWND) -> Vec<(HWND, RECT)> {
+        let group_index = self.get_group_index_by_hwnd(hwnd);
+        let group= self.get_group(group_index);
         group.windows.retain(|h|h != &hwnd);
+        return self.calculate_window_positions(vec![group_index]);
     }
 
     pub fn swap_windows(&mut self, hwnd_1: HWND, hwnd_2: HWND) -> Vec<(HWND, RECT)> {
@@ -35,13 +35,20 @@ impl GroupManager {
         let group_index_2 = self.get_group_index_by_hwnd(hwnd_2);
         let window_index_1 = self.get_window_index_in_group(group_index_1, hwnd_1);
         let window_index_2 = self.get_window_index_in_group(group_index_2, hwnd_2);
-        std::mem::swap(
-            &mut self.groups[group_index_1].windows[window_index_1],
-            &mut self.groups[group_index_2].windows[window_index_2],
-        );
+        let mut window_1 = &self.groups[group_index_1].windows[window_index_1];
+        let mut window_2 = &self.groups[group_index_2].windows[window_index_2];
+        std::mem::swap(&mut window_1, &mut window_2);
         return self.calculate_window_positions(vec![group_index_1, group_index_2]);
     }
-
+    
+    pub fn hwnds_from_groups(&self, group_ids: &Vec<usize>) -> Vec<HWND> {
+        let mut hwnds = Vec::new();
+        for group_id in group_ids {
+            hwnds.extend(&self.groups[*group_id].windows);
+        }
+        return hwnds;
+    }
+    
     pub fn calculate_window_positions(&self, group_ids: Vec<usize>) -> Vec<(HWND, RECT)> {
         let mut window_positions = Vec::new();
         let num_groups = self.groups.len();
@@ -80,20 +87,33 @@ impl GroupManager {
         }
         return window_positions;
     }
-
-    // TODO: This should take a vector of groups belonging to a workspace
-    fn get_current_group(&mut self) -> &mut Group {
-        self.groups
-            .iter_mut()
-            .find(|group| group.focused)
-            .expect("Unable to fetch the current group")
+    
+    // Validate each hwnd only exists in one group
+    pub fn validate(&mut self) -> Vec<(HWND, RECT)> {
+        let mut all_hwnds = Vec::new();
+        let mut updated_groups = Vec::new();
+        self.groups.iter_mut().for_each(|group| {
+            let before_len = group.windows.len();
+            group.windows.retain(|hwnd| !all_hwnds.contains(&hwnd));
+            let after_len = group.windows.len();
+            if before_len != after_len {
+                updated_groups.push(group.index);
+            }
+            all_hwnds.extend(group.windows.iter());
+        });
+        return self.calculate_window_positions(updated_groups);
     }
 
-    fn get_group_by_index(&mut self, index: usize) -> &mut Group {
+    fn get_group(&mut self, index: usize) -> &mut Group {
         self.groups
             .get_mut(index)
             .expect("Unable to fetch group for the requested index")
     }
+    
+    fn hwnds_from_group(&self, group_id: usize) -> &Vec<HWND> {
+        &self.groups[group_id].windows
+    }
+
 
     fn get_group_index_by_hwnd(&self, hwnd: HWND) -> usize {
         self.groups

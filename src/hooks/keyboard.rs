@@ -1,66 +1,46 @@
-use log::debug;
 use windows::Win32::{
     Foundation::{LPARAM, LRESULT, WPARAM},
     UI::WindowsAndMessaging::{HHOOK, KBDLLHOOKSTRUCT, WH_KEYBOARD_LL},
 };
 
-use crate::data::action::Execute;
-use crate::state::KEYBINDS;
-use crate::{
-    data::key::{Key, KeyAction, KeyPress, Keybind, WINDOWS_KEY_CODE},
-    win_api::hook::{call_next_hook, set_hook},
-};
+use crate::{data::key::{Key, KeyAction, KeyPress}, win_api, win_api::hook::{call_next_hook, set_window_hook}};
+use crate::data::hook::Hook;
+use crate::state::management::state_manager::StateManager;
 
-pub fn init_hook() -> HHOOK {
-    return set_hook(WH_KEYBOARD_LL, callback);
+pub struct KeyboardHook {
+    hook: HHOOK,
+    state_manager: &mut StateManager,
+    pub callback: unsafe extern "system" fn(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT
 }
-static mut PRESSED_KEYS: Vec<Key> = Vec::new();
-pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
-    let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
-    let key_code: i32 = hook_struct.as_mut().unwrap().vkCode as i32;
 
-    let key_action: KeyAction = KeyAction::from(w_param.0);
-    let key: Key = Key::from(key_code);
-    let key_press: KeyPress = KeyPress::new(key_action, key);
-
-    match key_action {
-        KeyAction::DOWN => {
-            // User pressed a key, add it to KEY_COMBO
-            if !PRESSED_KEYS.contains(&key_press.key) {
-                PRESSED_KEYS.push(key_press.key.clone());
-            }
-        }
-        KeyAction::UP => {
-            PRESSED_KEYS.sort();
-            let bind_index = KEYBINDS.iter().position(|key_bind| {
-                // Attempt to find a keybind that matches the pressed_combo
-                let mut bind_keys: Vec<Key> = key_bind.keys.clone();
-                bind_keys.sort();
-                if bind_keys == PRESSED_KEYS {
-                    return true;
-                }
-                return false;
-            });
-            if bind_index.is_some() {
-                // User pressed a defined keybind, execute the action
-                let bind: &Keybind = KEYBINDS.get(bind_index.unwrap()).unwrap();
-                debug!("Executing action for keybind {:?}", bind.keys);
-                bind.action.execute();
-            }
-            // Mark the key as released and carry on
-            let key_index = PRESSED_KEYS
-                .iter()
-                .position(|k| k == &key_press.key)
-                .expect(&(String::from("Failed to release key ".to_owned() + &key_press.key.name)));
-            PRESSED_KEYS.remove(key_index);
+impl KeyboardHook {
+    pub fn new(state_manager: &mut StateManager) -> Self {
+        Self {
+            hook: HHOOK::default(),
         }
     }
-    // Suppress every instance of the WIN key
-    // TODO: Instead, check for any key in $modifier
-    let win_key: Key = Key::from(WINDOWS_KEY_CODE);
-    if key_press.key == win_key || PRESSED_KEYS.contains(&win_key) {
-        LRESULT(10)
-    } else {
-        return call_next_hook(code, w_param, l_param);
+    unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+        let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
+        let key_code: i32 = hook_struct.as_ref().unwrap().vkCode as i32;
+        let key_action: KeyAction = KeyAction::from(w_param.0);
+        let key: Key = Key::from(key_code);
+        let key_press: KeyPress = KeyPress::new(key_action, key);
+        let propagate_key_press = self.state_manager.key_manager.handle_keypress(key_press);
+        match propagate_key_press {
+            true => call_next_hook(code, w_param, l_param),
+            false => LRESULT(10)
+        }
     }
 }
+
+impl Hook for KeyboardHook {
+    fn set(&mut self) {
+        self.hook = set_window_hook(WH_KEYBOARD_LL, self.callback);
+    }
+
+    fn remove(&mut self) {
+        win_api::hook::unset_window_hook(self.hook);
+        self.hook = HHOOK::default();
+    }
+}
+
