@@ -1,16 +1,16 @@
-use std::str::FromStr;
 use crate::data::action::Action;
+use std::str::FromStr;
 
 use crate::data::common::direction::Direction;
-use crate::state::management::action_manager::ActionManager;
+use crate::state::management::state_manager::StateManager;
 
 pub struct MoveWindow {
     pub direction: Direction,
 }
 
 impl Action for MoveWindow {
-    fn execute(&self, action_manager: &mut ActionManager) {
-        unsafe { action_manager.move_window_in_direction(self.direction.clone()) }
+    fn execute(&self, state_manager: &mut StateManager) {
+        state_manager.move_window_in_direction(self.direction.clone())
     }
 }
 

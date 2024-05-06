@@ -18,17 +18,16 @@ use windows::Win32::UI::Shell::{
     Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu,
-    GetCursorPos, GetForegroundWindow, GetMessageA, GetWindowInfo,
-    GetWindowLongA, GetWindowPlacement, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId,
-    InsertMenuA, LoadCursorW, LoadIconW, PostMessageA, PostQuitMessage, RegisterClassA,
-    SetForegroundWindow, SetWindowPos, ShowWindow, TrackPopupMenu, CS_HREDRAW,
-    CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW, IDI_APPLICATION, MF_STRING,
-    MSG, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE,
-    SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
+    BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, GetCursorPos,
+    GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement,
+    GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW,
+    PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow,
+    TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW,
+    IDI_APPLICATION, MF_STRING, MSG, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE,
+    SW_RESTORE, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
     WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
-    WM_DESTROY, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
-    WS_SIZEBOX, WS_VISIBLE,
+    WM_DESTROY, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX,
+    WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -124,7 +123,7 @@ pub fn register_class(instance: HMODULE, class_name: &str) {
             }
             WM_COMMAND => {
                 if w_param.0 == (WM_USER + 1) as usize {
-                    unsafe { PostQuitMessage(0) };
+                    unsafe { PostQuitMessage(100) };
                 }
                 LRESULT(0)
             }
@@ -189,7 +188,7 @@ pub fn foreground_hwnd() -> HWND {
 
 pub fn focus(hwnd: &HWND) -> bool {
     unsafe {
-        let process_id = GetWindowThreadProcessId(hwnd.clone(), None);
+        let process_id = GetWindowThreadProcessId(GetForegroundWindow(), None);
         attach_thread(process_id);
         let result = BringWindowToTop(hwnd.clone());
         detach_thread(process_id);
@@ -204,7 +203,7 @@ fn get_style(handle: HWND) -> i32 {
 fn get_extended_style(handle: HWND) -> i32 {
     return get_window_info(handle, GWL_EXSTYLE);
 }
-    
+
 static mut WINDOWS: Vec<Window> = Vec::new();
 pub fn get_all() -> Vec<Window> {
     unsafe {
@@ -293,7 +292,7 @@ pub fn set_position(hwnd: &HWND, position: RECT) {
     });
 }
 
-pub fn minimize(hwnd: &HWND) -> bool { 
+pub fn minimize(hwnd: &HWND) -> bool {
     unsafe { ShowWindow(hwnd.clone(), SW_SHOWMINNOACTIVE) }.as_bool()
 }
 
@@ -357,8 +356,8 @@ fn load_cursor() -> HCURSOR {
     return handle_result(unsafe { LoadCursorW(None, IDC_ARROW) });
 }
 
-pub(crate) fn get_message(message: *mut MSG, window_handle: HWND) -> BOOL {
-    return unsafe { GetMessageA(message, window_handle, 0, 0) };
+pub(crate) fn get_message(message: *mut MSG) -> BOOL {
+    return unsafe { GetMessageA(message, None, 0, 0) };
 }
 
 fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {

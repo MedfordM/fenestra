@@ -1,6 +1,7 @@
-use windows::Win32::UI::WindowsAndMessaging::{DispatchMessageA, MSG, TranslateMessage, WM_NULL};
-use crate::state::management::action_manager::ActionManager;
+use crate::data::key::{Key, KeyEvent, KeyEventType};
+use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
+use windows::Win32::UI::WindowsAndMessaging::{MSG, WM_APP, WM_NULL};
 
 mod actions;
 mod config;
@@ -11,20 +12,22 @@ mod win_api;
 
 fn main() {
     env_logger::init();
-    let state_manager = StateManager::new();
-    let action_manager = ActionManager::new(state_manager);
-    
-    let mut message: MSG = MSG::default();
-    while win_api::window::get_message(&mut message, unsafe { state_manager.handle() }).into()
-    {
-        unsafe {
-            let _ = TranslateMessage(&message);
-        }
-        unsafe {
-            DispatchMessageA(&message);
-        }
-        if message.message == WM_NULL {
-            hooks::unset_hooks();
+    let mut state_manager = StateManager::new();
+    let mut key_manager = KeyManager::new();
+    let mut message = MSG::default();
+    let _ = win_api::window::get_message(&mut message);
+    const KEY_EVENT: u32 = WM_APP + 2;
+    while message.message != WM_NULL {
+        let _ = win_api::window::get_message(&mut message);
+        match message.message {
+            KEY_EVENT => {
+                let key = Key::from(message.lParam.0 as i32);
+                let event_type = KeyEventType::from(message.wParam.0);
+                let key_event = KeyEvent::new(event_type, key);
+                key_manager.handle_keypress(key_event, &mut state_manager);
+            }
+            _ => (),
         }
     }
+    hooks::unset_hooks(state_manager.hooks());
 }

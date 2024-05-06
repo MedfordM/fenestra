@@ -1,16 +1,16 @@
+use crate::data::action::Action;
+use crate::state::management::state_manager::StateManager;
 use log::error;
 use std::process::exit;
 use std::str::FromStr;
-use crate::data::action::Action;
-use crate::state::management::action_manager::ActionManager;
 
 pub struct FocusWorkspace {
     pub id: usize,
 }
 
 impl Action for FocusWorkspace {
-    fn execute(&self, action_manager: &mut ActionManager) {
-        unsafe { action_manager.focus_workspace(self.id - 1) };
+    fn execute(&self, state_manager: &mut StateManager) {
+        state_manager.focus_workspace(self.id - 1);
     }
 }
 

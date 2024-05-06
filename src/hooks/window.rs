@@ -10,7 +10,6 @@ use windows::Win32::{
 };
 
 use crate::data::hook::Hook;
-use crate::state::STATE_MANAGER;
 use crate::win_api;
 
 pub struct EventHook {
@@ -20,7 +19,7 @@ pub struct EventHook {
 impl EventHook {
     pub fn new() -> Self {
         Self {
-            hook: HWINEVENTHOOK::default()
+            hook: HWINEVENTHOOK::default(),
         }
     }
 }
@@ -51,10 +50,13 @@ pub unsafe extern "system" fn callback(
             if window_result.is_none() {
                 return;
             }
-            let new_positions = STATE_MANAGER.group_manager.remove_window(hwnd);
-            for (hwnd, position) in new_positions {
-                STATE_MANAGER.window_manager.set_position(hwnd, position, 0);
-            }
+            // let new_positions = STATE_MANAGER.borrow_mut().group_manager.remove_window(hwnd);
+            // for (hwnd, position) in new_positions {
+            //     STATE_MANAGER
+            //         .borrow_mut()
+            //         .window_manager
+            //         .set_position(hwnd, position, 0);
+            // }
         }
         // EVENT_SYSTEM_MINIMIZEEND => {
         //     let window_result = Window::from(hwnd);
@@ -86,15 +88,15 @@ pub unsafe extern "system" fn callback(
                 return;
             }
             // debug!("Foreground window was updated: {}", window.title);
-            STATE_MANAGER.add_window(hwnd);
-            STATE_MANAGER.validate();
+            // STATE_MANAGER.borrow_mut().add_window(hwnd);
+            // STATE_MANAGER.borrow_mut().validate();
         }
         EVENT_SYSTEM_MOVESIZEEND => {
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
-            STATE_MANAGER.validate();
+            // STATE_MANAGER.borrow_mut().validate();
         }
         _ => (),
     }

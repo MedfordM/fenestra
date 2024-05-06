@@ -1,17 +1,17 @@
 use std::process::exit;
 use std::str::FromStr;
 
-use log::error;
 use crate::data::action::Action;
-use crate::state::management::action_manager::ActionManager;
+use crate::state::management::state_manager::StateManager;
+use log::error;
 
 pub struct MoveToWorkspace {
     pub id: usize,
 }
 
 impl Action for MoveToWorkspace {
-    fn execute(&self, action_manager: &mut ActionManager) {
-        action_manager.move_to_workspace(self.id)
+    fn execute(&self, state_manager: &mut StateManager) {
+        state_manager.move_to_workspace(self.id)
     }
 }
 
