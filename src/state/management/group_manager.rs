@@ -1,6 +1,5 @@
 use crate::data::common::axis::Axis;
 use crate::data::group::Group;
-use log::debug;
 use windows::Win32::Foundation::{HWND, RECT};
 
 pub struct GroupManager {

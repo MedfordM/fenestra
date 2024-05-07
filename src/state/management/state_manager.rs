@@ -119,9 +119,19 @@ impl StateManager {
 impl StateManager {
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        let nearest_hwnd = self
-            .window_manager
-            .find_nearest_in_direction(current_hwnd, direction);
+        let hmonitors = self.monitor_manager.get_all();
+        let candidate_hwnds = hmonitors
+            .iter()
+            .map(|hmonitor| self.monitor_manager.workspaces_for_monitor(*hmonitor))
+            .map(|workspaces| self.workspace_manager.active_workspace(workspaces))
+            .map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
+            .map(|groups| self.group_manager.hwnds_from_groups(groups))
+            .flat_map(|hwnds| hwnds.into_iter())
+            .collect();
+
+        let nearest_hwnd =
+            self.window_manager
+                .find_nearest_in_direction(current_hwnd, direction, candidate_hwnds);
         if nearest_hwnd.is_some() {
             self.window_manager.focus(nearest_hwnd.unwrap())
         }
@@ -129,9 +139,20 @@ impl StateManager {
 
     pub fn move_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        let nearest_result = self
-            .window_manager
-            .find_nearest_in_direction(current_hwnd, direction.clone());
+        let hmonitors = self.monitor_manager.get_all();
+        let candidate_hwnds = hmonitors
+            .iter()
+            .map(|hmonitor| self.monitor_manager.workspaces_for_monitor(*hmonitor))
+            .map(|workspaces| self.workspace_manager.active_workspace(workspaces))
+            .map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
+            .map(|groups| self.group_manager.hwnds_from_groups(groups))
+            .flat_map(|hwnds| hwnds.into_iter())
+            .collect();
+        let nearest_result = self.window_manager.find_nearest_in_direction(
+            current_hwnd,
+            direction.clone(),
+            candidate_hwnds,
+        );
         let new_positions = match nearest_result {
             Some(nearest_hwnd) => self.group_manager.swap_windows(current_hwnd, nearest_hwnd),
             None => {

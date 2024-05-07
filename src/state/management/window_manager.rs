@@ -71,12 +71,18 @@ impl WindowManager {
         }
     }
 
-    pub fn find_nearest_in_direction(&mut self, hwnd: HWND, direction: Direction) -> Option<HWND> {
+    pub fn find_nearest_in_direction(
+        &mut self,
+        hwnd: HWND,
+        direction: Direction,
+        candidate_hwnds: Vec<HWND>,
+    ) -> Option<HWND> {
         let window = self.get_window(hwnd);
         let origin = DirectionCandidate::from(&*window);
         let candidates = self
             .windows
             .iter()
+            .filter(|window| candidate_hwnds.contains(&window.hwnd))
             .map(|window| DirectionCandidate::from(window))
             .collect();
         let nearest_result = direction.find_nearest(&origin, candidates);
