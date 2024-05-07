@@ -36,21 +36,20 @@ impl GroupManager {
         let group_index_2 = self.get_group_index_by_hwnd(hwnd_2);
         let window_index_1 = self.get_window_index_in_group(group_index_1, hwnd_1);
         let window_index_2 = self.get_window_index_in_group(group_index_2, hwnd_2);
-        let mut window_1 = &self.groups[group_index_1].windows[window_index_1];
-        let mut window_2 = &self.groups[group_index_2].windows[window_index_2];
-        debug!(
-            "Swapping {:?} and {:?} in groups {:?} and {:?}",
-            *window_1,
-            *window_2,
-            self.groups[group_index_1].windows,
-            self.groups[group_index_2].windows
-        );
-        // TODO: This doesn't actually swap hwnds
-        std::mem::swap(&mut window_1, &mut window_2);
-        debug!(
-            "After swap: {:?} {:?}",
-            self.groups[group_index_1].windows, self.groups[group_index_2].windows
-        );
+        let window_set_1 = &mut self.groups[group_index_1].windows.clone();
+        let window_set_2 = &mut self.groups[group_index_2].windows.clone();
+        let window_1 = window_set_1[window_index_1];
+        let window_2 = window_set_2[window_index_2];
+        // debug!(
+        //     "Swapping {:?} and {:?} in groups {:?} and {:?}",
+        //     window_1, window_2, window_set_1, window_set_2
+        // );
+        self.groups[group_index_1].windows[window_index_1] = window_2;
+        self.groups[group_index_2].windows[window_index_2] = window_1;
+        // debug!(
+        //     "After swap: {:?} {:?}",
+        //     self.groups[group_index_1].windows, self.groups[group_index_2].windows
+        // );
         return self.calculate_window_positions(vec![group_index_1, group_index_2]);
     }
 

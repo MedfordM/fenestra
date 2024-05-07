@@ -59,14 +59,15 @@ impl WindowManager {
         let adj_left: i32 = window.rect.left + offset;
         let width: i32 = window.rect.right - adj_left - offset;
         let height: i32 = window.rect.bottom - window.rect.top - offset;
+        win_api::window::set_position(&window.hwnd, position);
         let result = win_api::window::restore(&window.hwnd);
         if result {
             debug!(
-                "Set for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
+                "Set position for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
                 window.title, adj_left, window.rect.top, width, height
             );
         } else {
-            debug!("Unable to maximize '{}'", &window.title);
+            debug!("Unable to set position for '{}'", &window.title);
         }
     }
 
