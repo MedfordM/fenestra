@@ -11,7 +11,8 @@ use crate::state::management::monitor_manager::MonitorManager;
 use crate::state::management::window_manager::WindowManager;
 use crate::state::management::workspace_manager::WorkspaceManager;
 use crate::win_api;
-use log::warn;
+use log::{error, warn};
+use std::process::exit;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::HMONITOR;
 
@@ -30,7 +31,7 @@ impl StateManager {
         let mut groups: Vec<Group> = Vec::new();
         let windows = win_api::window::get_all();
         let all_hwnds: Vec<HWND> = windows.iter().map(|window| window.hwnd).collect();
-        let index = 0;
+        let mut index = 0;
         monitors.iter_mut().for_each(|monitor| {
             let mut hwnds_on_monitor = Vec::new();
             all_hwnds.iter().for_each(|hwnd| {
@@ -53,6 +54,7 @@ impl StateManager {
             monitor.workspaces.push(index);
             workspaces.push(default_workspace);
             groups.push(default_group);
+            index += 1;
         });
         let monitor_manager = MonitorManager::new(monitors);
         let workspace_manager = WorkspaceManager::new(workspaces);
@@ -86,7 +88,7 @@ impl StateManager {
 
     pub fn current_group(&self) -> usize {
         self.group_manager
-            .group_for_hwnd(self.window_manager.current_window().clone())
+            .group_for_hwnd(self.window_manager.current_window())
     }
 
     pub fn add_window(&mut self, hwnd: HWND) {
@@ -116,6 +118,13 @@ impl StateManager {
             warn!("Encountered unmanaged windows during validation, all windows should be added via the event listener");
             new_positions.append(&mut self.group_manager.add_window(group, hwnd));
         });
+        // Ensure that every managed window has a group
+        let num_windows = self.window_manager.managed_hwnds().len();
+        let num_group_hwnds = self.group_manager.num_hwnds();
+        if num_windows != num_group_hwnds {
+            error!("WindowManager and GroupManager state have drifted apart");
+            exit(100);
+        }
         new_positions.append(&mut self.group_manager.validate());
         for (hwnd, position) in new_positions {
             self.window_manager.set_position(hwnd, position, 0);
@@ -124,17 +133,34 @@ impl StateManager {
 }
 
 impl StateManager {
+    fn candidate_hwnds(&self) -> Vec<HWND> {
+        let hmonitors = self.monitor_manager.get_all();
+        let workspaces: Vec<usize> = hmonitors
+            .into_iter()
+            .flat_map(|hmonitor| self.monitor_manager.workspaces_for_monitor(hmonitor))
+            .cloned()
+            .collect();
+        let groups: Vec<usize> = workspaces
+            .into_iter()
+            .flat_map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
+            .cloned()
+            .collect();
+        let mut candidate_hwnds = self.group_manager.hwnds_from_groups(&groups);
+        let manageable_hwnds = self.window_manager.managed_hwnds();
+        candidate_hwnds.retain(|hwnd| manageable_hwnds.contains(&hwnd));
+        return candidate_hwnds;
+    }
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        let hmonitors = self.monitor_manager.get_all();
-        let candidate_hwnds = hmonitors
-            .iter()
-            .map(|hmonitor| self.monitor_manager.workspaces_for_monitor(*hmonitor))
-            .map(|workspaces| self.workspace_manager.active_workspace(workspaces))
-            .map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
-            .map(|groups| self.group_manager.hwnds_from_groups(groups))
-            .flat_map(|hwnds| hwnds.into_iter())
-            .collect();
+        let candidate_hwnds = self.candidate_hwnds();
+        // let candidate_hwnds = hmonitors
+        //     .iter()
+        //     .map(|hmonitor| self.monitor_manager.workspaces_for_monitor(*hmonitor))
+        //     .map(|workspaces| self.workspace_manager.active_workspace(workspaces))
+        //     .map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
+        //     .map(|groups| self.group_manager.hwnds_from_groups(groups))
+        //     .flat_map(|hwnds| hwnds.into_iter())
+        //     .collect();
 
         let nearest_hwnd =
             self.window_manager
@@ -146,15 +172,7 @@ impl StateManager {
 
     pub fn move_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        let hmonitors = self.monitor_manager.get_all();
-        let candidate_hwnds = hmonitors
-            .iter()
-            .map(|hmonitor| self.monitor_manager.workspaces_for_monitor(*hmonitor))
-            .map(|workspaces| self.workspace_manager.active_workspace(workspaces))
-            .map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
-            .map(|groups| self.group_manager.hwnds_from_groups(groups))
-            .flat_map(|hwnds| hwnds.into_iter())
-            .collect();
+        let candidate_hwnds = self.candidate_hwnds();
         let nearest_result = self.window_manager.find_nearest_in_direction(
             current_hwnd,
             direction.clone(),

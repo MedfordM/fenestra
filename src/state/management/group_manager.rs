@@ -11,7 +11,17 @@ impl GroupManager {
         Self { groups }
     }
 
-    pub fn group_for_hwnd(&self, hwnd: HWND) -> usize {
+    pub fn num_hwnds(&self) -> usize {
+        let hwnds: Vec<&HWND> = self
+            .groups
+            .iter()
+            .map(|group| &group.windows)
+            .flat_map(|hwnds| hwnds.into_iter())
+            .collect();
+        return hwnds.len();
+    }
+
+    pub fn group_for_hwnd(&self, hwnd: &HWND) -> usize {
         self.groups
             .iter()
             .position(|group| group.windows.contains(&hwnd))
@@ -57,11 +67,12 @@ impl GroupManager {
     }
 
     pub fn hwnds_from_groups(&self, group_ids: &Vec<usize>) -> Vec<HWND> {
-        let mut hwnds = Vec::new();
-        for group_id in group_ids {
-            hwnds.extend(&self.groups[*group_id].windows);
-        }
-        return hwnds;
+        self.groups
+            .iter()
+            .filter(|group| group_ids.contains(&&group.index))
+            .flat_map(|group| &group.windows)
+            .cloned()
+            .collect()
     }
 
     pub fn calculate_window_positions(&self, group_ids: Vec<usize>) -> Vec<(HWND, RECT)> {

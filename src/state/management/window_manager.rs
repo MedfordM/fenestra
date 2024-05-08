@@ -6,16 +6,23 @@ use windows::Win32::Foundation::{HWND, RECT};
 
 pub struct WindowManager {
     windows: Vec<Window>,
-    active_window: HWND
+    active_window: HWND,
 }
 
 impl WindowManager {
     pub fn new(windows: Vec<Window>) -> Self {
-        Self { windows, active_window: win_api::window::foreground_hwnd() }
+        Self {
+            windows,
+            active_window: win_api::window::foreground_hwnd(),
+        }
     }
-    
+
     pub fn current_window(&self) -> &HWND {
         &self.active_window
+    }
+
+    pub fn managed_hwnds(&self) -> Vec<&HWND> {
+        self.windows.iter().map(|window| &window.hwnd).collect()
     }
 
     pub fn add_window(&mut self, hwnd: HWND) -> bool {
@@ -31,14 +38,27 @@ impl WindowManager {
             self.windows.retain(|w| w.hwnd != window.hwnd);
             let new_len = self.windows.len();
             if old_len > new_len {
-                debug!("Removed old window state for {}", window.title);
+                debug!("Removed old window state for '{}'", window.title);
             } else {
-                warn!("Failed to remove old window state for {}", window.title);
+                warn!("Failed to remove old window state for '{}'", window.title);
                 return false;
             }
         }
-        debug!("Adding window {}", window.title);
+        debug!("Adding window '{}'", window.title);
         self.windows.push(window);
+        return true;
+    }
+
+    pub fn remove_window(&mut self, hwnd: &HWND) -> bool {
+        if !self.managed_hwnds().contains(&hwnd) {
+            return false;
+        }
+        self.windows
+            .iter()
+            .find(|window| window.hwnd == *hwnd)
+            .iter()
+            .for_each(|window| debug!("Removing window {}", window.title));
+        self.windows.retain(|w| w.hwnd != *hwnd);
         return true;
     }
 
@@ -47,6 +67,7 @@ impl WindowManager {
         let result = win_api::window::minimize(&window.hwnd);
         if result {
             debug!("Minimized '{}'", &window.title);
+            self.remove_window(&hwnd);
         } else {
             debug!("Unable to minimize '{}'", &window.title);
         }
@@ -106,13 +127,34 @@ impl WindowManager {
         direction: Direction,
         candidate_hwnds: Vec<HWND>,
     ) -> Option<HWND> {
-        let window = self.get_window(hwnd);
-        let origin = DirectionCandidate::from(&*window);
-        let candidates = self
+        let all_window_titles: Vec<String> = self
+            .windows
+            .iter()
+            .map(|window| String::from(&window.title))
+            .collect();
+        debug!("Currently managed windows: {:?}", all_window_titles);
+        let window = self
+            .windows
+            .iter()
+            .find(|window| window.hwnd == hwnd)
+            .expect("Unable to find window for the requested hwnd");
+        let candidate_windows: Vec<&Window> = self
             .windows
             .iter()
             .filter(|window| candidate_hwnds.contains(&window.hwnd))
-            .map(|window| DirectionCandidate::from(window))
+            .collect();
+        let candidate_window_titles: Vec<String> = candidate_windows
+            .iter()
+            .map(|window| String::from(&window.title))
+            .collect();
+        debug!(
+            "Finding closest window {} from {} with candidates {:?}",
+            direction, &window.title, candidate_window_titles
+        );
+        let origin = DirectionCandidate::from(&*window);
+        let candidates = candidate_windows
+            .iter()
+            .map(|window| DirectionCandidate::from(*window))
             .collect();
         let nearest_result = direction.find_nearest(&origin, candidates);
         if nearest_result.is_some() {
@@ -124,9 +166,13 @@ impl WindowManager {
     }
 
     pub fn validate_windows(&mut self) -> (Vec<HWND>, Vec<HWND>) {
-        let mut titles: Vec<String> = self.windows.iter().map(|window| String::from(&window.title)).collect();
-        titles.sort();
-        debug!("Beginning window validation on windows {:?}", titles);
+        // let mut titles: Vec<String> = self
+        //     .windows
+        //     .iter()
+        //     .map(|window| String::from(&window.title))
+        //     .collect();
+        // titles.sort();
+        // debug!("Beginning window validation on windows {:?}", titles);
         let mut removed_windows = Vec::new();
         for i in 0..self.windows.len() {
             let hwnd = self.windows[i].hwnd;
@@ -145,9 +191,13 @@ impl WindowManager {
             }
             self.windows.push(window);
         }
-        titles = self.windows.iter().map(|window| String::from(&window.title)).collect();
-        titles.sort();
-        debug!("Completed window validation with windows {:?}", titles);
+        // titles = self
+        //     .windows
+        //     .iter()
+        //     .map(|window| String::from(&window.title))
+        //     .collect();
+        // titles.sort();
+        // debug!("Completed window validation with windows {:?}", titles);
         return (removed_windows, added_windows);
     }
 
