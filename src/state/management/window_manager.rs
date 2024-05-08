@@ -109,12 +109,18 @@ impl WindowManager {
         let adj_left: i32 = window.rect.left + offset;
         let width: i32 = window.rect.right - adj_left - offset;
         let height: i32 = window.rect.bottom - window.rect.top - offset;
-        win_api::window::set_position(&window.hwnd, position);
+        let rect = RECT {
+            left: adj_left,
+            top: position.top,
+            right: width,
+            bottom: height,
+        };
+        win_api::window::set_position(&window.hwnd, rect);
         let result = win_api::window::restore(&window.hwnd);
         if result {
             debug!(
                 "Set position for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
-                window.title, adj_left, window.rect.top, width, height
+                window.title, rect.left, rect.top, rect.right, rect.bottom
             );
         } else {
             debug!("Unable to set position for '{}'", &window.title);
