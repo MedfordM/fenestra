@@ -86,11 +86,18 @@ impl StateManager {
 
     pub fn current_group(&self) -> usize {
         self.group_manager
-            .group_for_hwnd(win_api::window::foreground_hwnd())
+            .group_for_hwnd(self.window_manager.current_window().clone())
     }
 
     pub fn add_window(&mut self, hwnd: HWND) {
-        self.group_manager.add_window(self.current_group(), hwnd);
+        let added_window = self.window_manager.add_window(hwnd);
+        if !added_window {
+            return;
+        }
+        let new_positions = self.group_manager.add_window(self.current_group(), hwnd);
+        for (hwnd, position) in new_positions {
+            self.window_manager.set_position(hwnd, position, 0);
+        }
     }
 
     pub fn remove_window(&mut self, hwnd: HWND) {

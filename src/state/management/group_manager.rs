@@ -19,6 +19,10 @@ impl GroupManager {
     }
 
     pub fn add_window(&mut self, group_index: usize, hwnd: HWND) -> Vec<(HWND, RECT)> {
+        let group = &self.groups[group_index];
+        if group.windows.contains(&hwnd) {
+            return Vec::new();
+        }
         self.groups[group_index].windows.push(hwnd);
         return self.calculate_window_positions(vec![group_index]);
     }

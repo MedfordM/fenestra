@@ -1,16 +1,45 @@
 use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::window::Window;
 use crate::win_api;
-use log::debug;
+use log::{debug, warn};
 use windows::Win32::Foundation::{HWND, RECT};
 
 pub struct WindowManager {
     windows: Vec<Window>,
+    active_window: HWND
 }
 
 impl WindowManager {
     pub fn new(windows: Vec<Window>) -> Self {
-        Self { windows }
+        Self { windows, active_window: win_api::window::foreground_hwnd() }
+    }
+    
+    pub fn current_window(&self) -> &HWND {
+        &self.active_window
+    }
+
+    pub fn add_window(&mut self, hwnd: HWND) -> bool {
+        let window_result = win_api::window::get_window(hwnd);
+        if window_result.is_none() {
+            warn!("An attempt to add a window failed");
+            return false;
+        }
+        let window = window_result.unwrap();
+        if self.windows.contains(&window) {
+            // Remove the outdated window state
+            let old_len = self.windows.len();
+            self.windows.retain(|w| w.hwnd != window.hwnd);
+            let new_len = self.windows.len();
+            if old_len > new_len {
+                debug!("Removed old window state for {}", window.title);
+            } else {
+                warn!("Failed to remove old window state for {}", window.title);
+                return false;
+            }
+        }
+        debug!("Adding window {}", window.title);
+        self.windows.push(window);
+        return true;
     }
 
     pub fn minimize(&mut self, hwnd: HWND) {
@@ -95,6 +124,9 @@ impl WindowManager {
     }
 
     pub fn validate_windows(&mut self) -> (Vec<HWND>, Vec<HWND>) {
+        let mut titles: Vec<String> = self.windows.iter().map(|window| String::from(&window.title)).collect();
+        titles.sort();
+        debug!("Beginning window validation on windows {:?}", titles);
         let mut removed_windows = Vec::new();
         for i in 0..self.windows.len() {
             let hwnd = self.windows[i].hwnd;
@@ -106,13 +138,16 @@ impl WindowManager {
         let mut added_windows = Vec::new();
         for window in win_api::window::get_all() {
             if self.windows.contains(&window) {
-                // Update the window state
-                self.windows.retain(|w| w != &window);
-                self.windows.push(window);
+                // Remove the old window state
+                self.windows.retain(|w| w.hwnd != window.hwnd);
             } else {
                 added_windows.push(window.hwnd);
             }
+            self.windows.push(window);
         }
+        titles = self.windows.iter().map(|window| String::from(&window.title)).collect();
+        titles.sort();
+        debug!("Completed window validation with windows {:?}", titles);
         return (removed_windows, added_windows);
     }
 

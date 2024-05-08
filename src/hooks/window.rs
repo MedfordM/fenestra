@@ -8,6 +8,8 @@ use windows::Win32::{
         },
     },
 };
+use windows::Win32::Foundation::{LPARAM, WPARAM};
+use windows::Win32::UI::WindowsAndMessaging::{PostMessageA, WM_APP};
 
 use crate::data::hook::Hook;
 use crate::win_api;
@@ -88,8 +90,7 @@ pub unsafe extern "system" fn callback(
                 return;
             }
             // debug!("Foreground window was updated: {}", window.title);
-            // STATE_MANAGER.borrow_mut().add_window(hwnd);
-            // STATE_MANAGER.borrow_mut().validate();
+            let _ = PostMessageA(None, WM_APP + 3, WPARAM(0), LPARAM(window_result.unwrap().hwnd.0));
         }
         EVENT_SYSTEM_MOVESIZEEND => {
             let window_result = win_api::window::get_window(hwnd);

@@ -1,3 +1,4 @@
+use windows::Win32::Foundation::HWND;
 use crate::data::key::{Key, KeyEvent, KeyEventType};
 use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
@@ -17,6 +18,7 @@ fn main() {
     let mut message = MSG::default();
     let _ = win_api::window::get_message(&mut message);
     const KEY_EVENT: u32 = WM_APP + 2;
+    const WINDOW_EVENT: u32 = WM_APP + 3;
     while message.message != WM_NULL {
         let _ = win_api::window::get_message(&mut message);
         match message.message {
@@ -25,7 +27,10 @@ fn main() {
                 let event_type = KeyEventType::from(message.wParam.0);
                 let key_event = KeyEvent::new(event_type, key);
                 key_manager.handle_keypress(key_event, &mut state_manager);
-            }
+            },
+            WINDOW_EVENT => {
+                state_manager.validate();
+            },
             _ => (),
         }
     }
