@@ -11,6 +11,14 @@ impl GroupManager {
         Self { groups }
     }
 
+    pub fn managed_hwnds(&self) -> Vec<&HWND> {
+        self.groups
+            .iter()
+            .map(|group| &group.windows)
+            .flat_map(|hwnds| hwnds.into_iter())
+            .collect()
+    }
+
     pub fn num_hwnds(&self) -> usize {
         let hwnds: Vec<&HWND> = self
             .groups
@@ -24,7 +32,7 @@ impl GroupManager {
     pub fn group_for_hwnd(&self, hwnd: &HWND) -> usize {
         self.groups
             .iter()
-            .position(|group| group.windows.contains(&hwnd))
+            .position(|group| group.windows.contains(hwnd))
             .expect("Unable to fetch group for the requested hwnd")
     }
 
@@ -75,9 +83,10 @@ impl GroupManager {
             .collect()
     }
 
-    pub fn calculate_window_positions(&self, group_ids: Vec<usize>) -> Vec<(HWND, RECT)> {
+    pub fn calculate_window_positions(&self, mut group_ids: Vec<usize>) -> Vec<(HWND, RECT)> {
+        Vec::dedup(&mut group_ids);
         let mut window_positions = Vec::new();
-        let num_groups = self.groups.len();
+        let num_groups = group_ids.len();
         for group_id in group_ids {
             let group = &self.groups[group_id];
             let rect_width = group.rect.right - group.rect.left;

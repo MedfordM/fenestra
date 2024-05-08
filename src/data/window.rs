@@ -21,9 +21,6 @@ impl Eq for Window {}
 
 impl PartialEq for Window {
     fn eq(&self, other: &Self) -> bool {
-        self.hwnd == other.hwnd
-            || self.title == other.title
-            || self.thread_id == other.thread_id
-            || self.process_id == other.process_id
+        self.hwnd == other.hwnd || self.title == other.title
     }
 }

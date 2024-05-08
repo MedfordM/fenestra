@@ -1,7 +1,7 @@
-use windows::Win32::Foundation::HWND;
 use crate::data::key::{Key, KeyEvent, KeyEventType};
 use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
+use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{MSG, WM_APP, WM_NULL};
 
 mod actions;
@@ -27,10 +27,12 @@ fn main() {
                 let event_type = KeyEventType::from(message.wParam.0);
                 let key_event = KeyEvent::new(event_type, key);
                 key_manager.handle_keypress(key_event, &mut state_manager);
-            },
+            }
             WINDOW_EVENT => {
+                let hwnd = HWND(message.lParam.0);
+                state_manager.add_window(hwnd);
                 state_manager.validate();
-            },
+            }
             _ => (),
         }
     }

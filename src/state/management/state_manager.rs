@@ -86,9 +86,17 @@ impl StateManager {
             .workspace_for_group(self.current_group())
     }
 
+    // TODO: This really needs fixed
     pub fn current_group(&self) -> usize {
-        self.group_manager
-            .group_for_hwnd(self.window_manager.current_window())
+        let hwnd = win_api::window::foreground_hwnd();
+        if self.group_manager.managed_hwnds().contains(&&hwnd) {
+            return self.group_manager.group_for_hwnd(&hwnd);
+        }
+        let hmonitor = self.current_monitor();
+        let workspaces = self.monitor_manager.workspaces_for_monitor(hmonitor);
+        let workspace = self.workspace_manager.active_workspace(workspaces);
+        let groups = self.workspace_manager.groups_for_workspace(workspace);
+        return groups[groups.len() - 1];
     }
 
     pub fn add_window(&mut self, hwnd: HWND) {
@@ -107,6 +115,13 @@ impl StateManager {
     }
 
     pub fn validate(&mut self) {
+        // Ensure that every managed window has a group
+        let num_windows = self.window_manager.managed_hwnds(false).len();
+        let num_group_hwnds = self.group_manager.num_hwnds();
+        if num_windows != num_group_hwnds {
+            error!("WindowManager and GroupManager state have drifted apart");
+            exit(100);
+        }
         let (removed, added) = self.window_manager.validate_windows();
         let mut new_positions = Vec::new();
         removed.into_iter().for_each(|hwnd| {
@@ -118,14 +133,14 @@ impl StateManager {
             warn!("Encountered unmanaged windows during validation, all windows should be added via the event listener");
             new_positions.append(&mut self.group_manager.add_window(group, hwnd));
         });
+        new_positions.append(&mut self.group_manager.validate());
         // Ensure that every managed window has a group
-        let num_windows = self.window_manager.managed_hwnds().len();
+        let num_windows = self.window_manager.managed_hwnds(false).len();
         let num_group_hwnds = self.group_manager.num_hwnds();
         if num_windows != num_group_hwnds {
             error!("WindowManager and GroupManager state have drifted apart");
             exit(100);
         }
-        new_positions.append(&mut self.group_manager.validate());
         for (hwnd, position) in new_positions {
             self.window_manager.set_position(hwnd, position, 0);
         }
@@ -146,7 +161,7 @@ impl StateManager {
             .cloned()
             .collect();
         let mut candidate_hwnds = self.group_manager.hwnds_from_groups(&groups);
-        let manageable_hwnds = self.window_manager.managed_hwnds();
+        let manageable_hwnds = self.window_manager.managed_hwnds(true);
         candidate_hwnds.retain(|hwnd| manageable_hwnds.contains(&hwnd));
         return candidate_hwnds;
     }

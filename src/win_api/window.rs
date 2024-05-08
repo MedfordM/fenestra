@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use log::error;
+use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM,
@@ -222,35 +222,46 @@ pub fn get_all() -> Vec<Window> {
     unsafe {
         let mut windows = WINDOWS.clone();
         windows.sort_by(|a, b| a.hwnd.0.partial_cmp(&b.hwnd.0).unwrap());
+        // let titles: Vec<String> = windows
+        //     .iter()
+        //     .map(|window| String::from(&window.title))
+        //     .collect();
+        // debug!("Deduplicating {:?}", titles);
         Vec::dedup(&mut windows);
         return windows;
     }
 }
 
 pub fn get_window(hwnd: HWND) -> Option<Window> {
-    let style = get_style(hwnd);
-    let style_u32 = style as u32;
-    let extended_style = get_extended_style(hwnd);
-    if style_u32 & WS_VISIBLE.0 == 0 {
-        return None;
-    }
-
-    if style_u32 & WS_OVERLAPPEDWINDOW.0 == 0 {
-        return None;
-    }
-
-    if style_u32 & WS_SIZEBOX.0 == 0 {
-        return None;
-    }
-
-    if style_u32 & WS_MINIMIZE.0 != 0 {
-        return None;
-    }
-
     let title: String = get_window_title(hwnd);
     if title.is_empty() || title.to_lowercase().contains("settings") {
         return None;
     }
+    let style = get_style(hwnd);
+    let style_u32 = style as u32;
+    let extended_style = get_extended_style(hwnd);
+    if style_u32 & WS_VISIBLE.0 == 0 {
+        // debug!("Ignoring window '{}' as it is not visible", title);
+        return None;
+    }
+
+    if style_u32 & WS_OVERLAPPEDWINDOW.0 == 0 {
+        // debug!("Ignoring window '{}' as it is not overlapped", title);
+        return None;
+    }
+
+    if style_u32 & WS_SIZEBOX.0 == 0 {
+        // debug!(
+        // "Ignoring window '{}' as it is does not have a sizebox",
+        // title
+        // );
+        return None;
+    }
+
+    // if style_u32 & WS_MINIMIZE.0 != 0 {
+    //     return None;
+    // }
+
     let window_info: WINDOWINFO = get_window_coords(hwnd);
     let rect: RECT = get_rect(hwnd);
     let mut border_thickness = 0;
