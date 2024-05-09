@@ -1,8 +1,8 @@
-use std::fmt::Debug;
 use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::window::Window;
 use crate::win_api;
 use log::{debug, warn};
+use std::fmt::Debug;
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZE;
 
@@ -154,7 +154,10 @@ impl WindowManager {
             .windows
             .iter()
             .find(|window| window.hwnd == hwnd)
-            .expect(&(String::from("Attempt to get an unmanaged window - ") + &win_api::window::get_window_title(hwnd)));
+            .expect(
+                &(String::from("Attempt to get an unmanaged window - ")
+                    + &win_api::window::get_window_title(hwnd)),
+            );
         let candidate_windows: Vec<&Window> = self
             .windows
             .iter()
@@ -183,13 +186,13 @@ impl WindowManager {
     }
 
     pub fn validate_windows(&mut self) -> (Vec<HWND>, Vec<HWND>) {
-        let mut titles: Vec<String> = self
-            .windows
-            .iter()
-            .map(|window| String::from(&window.title))
-            .collect();
-        titles.sort();
-        debug!("Beginning window validation on windows {:?}", titles);
+        // let mut titles: Vec<String> = self
+        //     .windows
+        //     .iter()
+        //     .map(|window| String::from(&window.title))
+        //     .collect();
+        // titles.sort();
+        // debug!("Beginning window validation on windows {:?}", titles);
         let mut removed_windows = Vec::new();
         for i in 0..self.windows.len() {
             let hwnd = self.windows[i].hwnd;
@@ -208,13 +211,13 @@ impl WindowManager {
             }
             self.windows.push(window);
         }
-        titles = self
-            .windows
-            .iter()
-            .map(|window| String::from(&window.title))
-            .collect();
-        titles.sort();
-        debug!("Completed window validation with windows {:?}", titles);
+        // titles = self
+        //     .windows
+        //     .iter()
+        //     .map(|window| String::from(&window.title))
+        //     .collect();
+        // titles.sort();
+        // debug!("Completed window validation with windows {:?}", titles);
         return (removed_windows, added_windows);
     }
 

@@ -1,3 +1,4 @@
+use log::debug;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
@@ -29,10 +30,10 @@ impl From<&Window> for DirectionCandidate {
             id: window.hwnd.0,
             name: String::from(&window.title),
             rect: RECT {
-                left: window.info.rcWindow.left + window.info.cxWindowBorders as i32,
-                top: window.info.rcWindow.top + window.info.cyWindowBorders as i32,
-                right: window.info.rcWindow.right,
-                bottom: window.info.rcWindow.bottom,
+                left: window.rect.left + window.info.cxWindowBorders as i32,
+                top: window.rect.top + window.info.cyWindowBorders as i32,
+                right: window.rect.right,
+                bottom: window.rect.bottom,
             },
             offset_x: Some(window.info.cxWindowBorders),
             offset_y: Some(window.info.cyWindowBorders),
@@ -66,8 +67,7 @@ impl From<&Monitor> for DirectionCandidate {
     }
 }
 
-impl DirectionCandidate {
-}
+impl DirectionCandidate {}
 
 pub struct DirectionResult {
     pub id: isize,
@@ -92,10 +92,10 @@ impl Direction {
             x: origin.rect.left,
             y: origin.rect.top,
         };
-        // debug!(
-        //     "Attempting to find nearest({}) candidate from '{} at position {:?}'",
-        //     self, origin.name, origin_point
-        // );
+        debug!(
+            "Attempting to find nearest({}) candidate from '{} at position {:?}'",
+            self, origin.name, origin_point
+        );
         let mut results: Vec<DirectionResult> = Vec::new();
         candidates.into_iter().for_each(|candidate| {
             let candidate_offset_x = candidate.offset_x.unwrap_or_default() as i32;
@@ -104,10 +104,10 @@ impl Direction {
                 x: candidate.rect.left,
                 y: candidate.rect.top,
             };
-            // debug!(
-            //     "Evaluating candidate '{}' at position {:?}",
-            //     candidate.name, candidate_point
-            // );
+            debug!(
+                "Evaluating candidate '{}' at position {:?}",
+                candidate.name, candidate_point
+            );
             let delta_x: i32 = candidate_point.x - origin_point.x;
             let delta_y: i32 = candidate_point.y - origin_point.y;
             match &self {
@@ -159,7 +159,7 @@ impl Direction {
             let delta_x_pow = delta_x.pow(2);
             let delta_y_pow = delta_y.pow(2);
             let distance: f64 = ((delta_x_pow + delta_y_pow) as f64).sqrt();
-            // debug!("Calculated '{}' distance as {}", candidate.0, &distance);
+            debug!("Calculated '{}' distance as {}", candidate.name, &distance);
             results.push(DirectionResult {
                 id: candidate.id,
                 distance: distance as i32,

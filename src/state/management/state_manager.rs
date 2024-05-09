@@ -11,9 +11,9 @@ use crate::state::management::monitor_manager::MonitorManager;
 use crate::state::management::window_manager::WindowManager;
 use crate::state::management::workspace_manager::WorkspaceManager;
 use crate::win_api;
-use log::{error, warn};
+use log::{debug, error, warn};
 use std::process::exit;
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::HMONITOR;
 
 pub struct StateManager {
@@ -32,7 +32,15 @@ impl StateManager {
         let windows = win_api::window::get_all();
         let all_hwnds: Vec<HWND> = windows.iter().map(|window| window.hwnd).collect();
         let mut index = 0;
-        monitors.iter_mut().for_each(|monitor| {
+        monitors.iter_mut().for_each(|monitor| unsafe {
+            let mon_left = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x;
+            let mon_top = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.y;
+            let mon_width = monitor.device_mode.dmPelsWidth;
+            let mon_height = monitor.device_mode.dmPelsHeight;
+            let mon_right = mon_left + mon_width as i32;
+            let mut mon_bottom = mon_top + mon_height as i32;
+            let taskbar_offset = monitor.info.rcMonitor.bottom - monitor.info.rcWork.bottom;
+            mon_bottom -= taskbar_offset;
             let mut hwnds_on_monitor = Vec::new();
             all_hwnds.iter().for_each(|hwnd| {
                 let hmonitor = win_api::monitor::hmonitor_from_hwnd(*hwnd);
@@ -40,10 +48,16 @@ impl StateManager {
                     hwnds_on_monitor.push(*hwnd);
                 }
             });
+
             let default_group = Group {
                 index,
                 split_axis: Axis::VERTICAL,
-                rect: monitor.info.rcWork,
+                rect: RECT {
+                    left: mon_left,
+                    top: mon_top,
+                    right: mon_right,
+                    bottom: mon_bottom,
+                },
                 windows: hwnds_on_monitor,
             };
             let default_workspace = Workspace {
@@ -193,14 +207,23 @@ impl StateManager {
             direction.clone(),
             candidate_hwnds,
         );
+        let current_title = win_api::window::get_window_title(current_hwnd);
         let new_positions = match nearest_result {
-            Some(nearest_hwnd) => self.group_manager.swap_windows(current_hwnd, nearest_hwnd),
+            Some(nearest_hwnd) => {
+                let nearest_title = win_api::window::get_window_title(nearest_hwnd);
+                debug!(
+                    "Swapping window '{}' with '{}'",
+                    current_title, nearest_title
+                );
+                self.group_manager.swap_windows(current_hwnd, nearest_hwnd)
+            }
             None => {
                 let nearest_hmonitor_result = self
                     .monitor_manager
                     .find_nearest_in_direction(direction.clone());
                 match nearest_hmonitor_result {
                     Some(nearest_hmonitor) => {
+                        debug!("Moving window '{}' {}", current_title, direction);
                         let monitor_workspaces = self
                             .monitor_manager
                             .workspaces_for_monitor(nearest_hmonitor);
