@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::window::Window;
 use crate::win_api;
@@ -153,7 +154,7 @@ impl WindowManager {
             .windows
             .iter()
             .find(|window| window.hwnd == hwnd)
-            .expect("Unable to find window for the requested hwnd");
+            .expect(&(String::from("Attempt to get an unmanaged window - ") + &win_api::window::get_window_title(hwnd)));
         let candidate_windows: Vec<&Window> = self
             .windows
             .iter()

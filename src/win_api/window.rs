@@ -348,7 +348,7 @@ fn get_rect(hwnd: HWND) -> RECT {
     return rect;
 }
 
-fn get_window_title(handle: HWND) -> String {
+pub fn get_window_title(handle: HWND) -> String {
     let mut buffer = vec![0; 32];
     let result = unsafe { GetWindowTextA(handle, &mut buffer) };
     if result == 0 {
