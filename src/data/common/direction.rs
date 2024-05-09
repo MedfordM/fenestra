@@ -92,10 +92,10 @@ impl Direction {
             x: origin.rect.left,
             y: origin.rect.top,
         };
-        debug!(
-            "Attempting to find nearest({}) candidate from '{} at position {:?}'",
-            self, origin.name, origin_point
-        );
+        // debug!(
+        //     "Attempting to find nearest({}) candidate from '{} at position {:?}'",
+        //     self, origin.name, origin_point
+        // );
         let mut results: Vec<DirectionResult> = Vec::new();
         candidates.into_iter().for_each(|candidate| {
             let candidate_offset_x = candidate.offset_x.unwrap_or_default() as i32;
@@ -104,10 +104,10 @@ impl Direction {
                 x: candidate.rect.left,
                 y: candidate.rect.top,
             };
-            debug!(
-                "Evaluating candidate '{}' at position {:?}",
-                candidate.name, candidate_point
-            );
+            // debug!(
+            //     "Evaluating candidate '{}' at position {:?}",
+            //     candidate.name, candidate_point
+            // );
             let delta_x: i32 = candidate_point.x - origin_point.x;
             let delta_y: i32 = candidate_point.y - origin_point.y;
             match &self {
@@ -159,7 +159,7 @@ impl Direction {
             let delta_x_pow = delta_x.pow(2);
             let delta_y_pow = delta_y.pow(2);
             let distance: f64 = ((delta_x_pow + delta_y_pow) as f64).sqrt();
-            debug!("Calculated '{}' distance as {}", candidate.name, &distance);
+            // debug!("Calculated '{}' distance as {}", candidate.name, &distance);
             results.push(DirectionResult {
                 id: candidate.id,
                 distance: distance as i32,

@@ -2,7 +2,6 @@ use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::window::Window;
 use crate::win_api;
 use log::{debug, warn};
-use std::fmt::Debug;
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZE;
 
@@ -163,14 +162,14 @@ impl WindowManager {
             .iter()
             .filter(|window| candidate_hwnds.contains(&window.hwnd))
             .collect();
-        let candidate_window_titles: Vec<String> = candidate_windows
-            .iter()
-            .map(|window| String::from(&window.title))
-            .collect();
-        debug!(
-            "Finding closest window {} from {} with candidates {:?}",
-            direction, &window.title, candidate_window_titles
-        );
+        // let candidate_window_titles: Vec<String> = candidate_windows
+        //     .iter()
+        //     .map(|window| String::from(&window.title))
+        //     .collect();
+        // debug!(
+        //     "Finding closest window {} from {} with candidates {:?}",
+        //     direction, &window.title, candidate_window_titles
+        // );
         let origin = DirectionCandidate::from(&*window);
         let candidates = candidate_windows
             .iter()

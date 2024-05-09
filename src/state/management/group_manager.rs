@@ -1,5 +1,7 @@
 use crate::data::common::axis::Axis;
 use crate::data::group::Group;
+use crate::win_api;
+use log::debug;
 use windows::Win32::Foundation::{HWND, RECT};
 
 pub struct GroupManager {
@@ -52,7 +54,7 @@ impl GroupManager {
         return self.calculate_window_positions(vec![group_index]);
     }
 
-    pub fn swap_windows(&mut self, hwnd_1: HWND, hwnd_2: HWND) -> Vec<(HWND, RECT)> {
+    pub fn swap_windows(&mut self, hwnd_1: HWND, hwnd_2: HWND) -> Vec<usize> {
         let group_index_1 = self.get_group_index_by_hwnd(hwnd_1);
         let group_index_2 = self.get_group_index_by_hwnd(hwnd_2);
         let window_index_1 = self.get_window_index_in_group(group_index_1, hwnd_1);
@@ -71,7 +73,12 @@ impl GroupManager {
         //     "After swap: {:?} {:?}",
         //     self.groups[group_index_1].windows, self.groups[group_index_2].windows
         // );
-        return self.calculate_window_positions(vec![group_index_1, group_index_2]);
+        // win_api::window::inherit_monitor(window_2, window_1);
+        if group_index_2 == group_index_1 {
+            vec![group_index_1]
+        } else {
+            vec![group_index_1, group_index_2]
+        }
     }
 
     pub fn hwnds_from_groups(&self, group_ids: &Vec<usize>) -> Vec<HWND> {
@@ -87,11 +94,12 @@ impl GroupManager {
         Vec::dedup(&mut group_ids);
         let mut window_positions = Vec::new();
         let num_groups = group_ids.len();
+        debug!("Calculating window positions for {} groups", num_groups);
         for group_id in group_ids {
             let group = &self.groups[group_id];
-            let rect_width = group.rect.right - group.rect.left;
+            let group_width = group.rect.right - group.rect.left;
             let rect_height = group.rect.bottom - group.rect.top;
-            let group_width = rect_width as f32 / num_groups as f32;
+            // let group_width = rect_width as f32 / num_groups as f32;
             let windows = &group.windows;
             let num_windows = windows.len();
             let (section_width, section_height) = match group.split_axis {
@@ -100,10 +108,14 @@ impl GroupManager {
                     (rect_height as f32 / num_windows as f32) as i32,
                 ),
                 Axis::VERTICAL => (
-                    (group_width / num_windows as f32) as i32,
+                    (group_width as f32 / num_windows as f32) as i32,
                     (rect_height as f32) as i32,
                 ),
             };
+            debug!(
+                "Group width {} / {} windows = {} window width",
+                group_width, num_windows, section_width
+            );
             for window_index in 0..num_windows {
                 let new_position = match group.split_axis {
                     Axis::HORIZONTAL => {

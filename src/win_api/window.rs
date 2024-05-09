@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use log::{debug, error};
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM,
@@ -23,11 +23,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW,
     PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow,
     TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW,
-    IDI_APPLICATION, MF_STRING, MSG, SWP_NOACTIVATE, SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE,
-    SW_RESTORE, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
-    WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
-    WM_DESTROY, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_MINIMIZE, WS_OVERLAPPEDWINDOW,
-    WS_SIZEBOX, WS_VISIBLE,
+    IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN,
+    TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
+    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_PAINT, WM_RBUTTONUP,
+    WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -252,7 +252,7 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
 
     if style_u32 & WS_SIZEBOX.0 == 0 {
         // debug!(
-        // "Ignoring window '{}' as it is does not have a sizebox",
+        // "Ignoring window '{}' as it does not have a size-box",
         // title
         // );
         return None;
@@ -302,7 +302,7 @@ pub fn set_position(hwnd: &HWND, position: RECT) {
             position.right,
             position.bottom,
             // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
-            SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW,
+            SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW | SWP_DRAWFRAME | SWP_FRAMECHANGED,
         )
     });
 }

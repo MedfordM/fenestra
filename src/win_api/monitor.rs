@@ -59,7 +59,7 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             device_mode,
             scale,
             neighbors: HashMap::new(),
-            workspaces: Vec::new()
+            workspaces: Vec::new(),
         }
     }
 }

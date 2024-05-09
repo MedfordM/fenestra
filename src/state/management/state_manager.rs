@@ -35,6 +35,8 @@ impl StateManager {
         monitors.iter_mut().for_each(|monitor| unsafe {
             let mon_left = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x;
             let mon_top = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.y;
+            // let mon_right = monitor.info.rcMonitor.right;
+            // let mut mon_bottom = monitor.info.rcMonitor.bottom;
             let mon_width = monitor.device_mode.dmPelsWidth;
             let mon_height = monitor.device_mode.dmPelsHeight;
             let mon_right = mon_left + mon_width as i32;
@@ -179,18 +181,10 @@ impl StateManager {
         candidate_hwnds.retain(|hwnd| manageable_hwnds.contains(&hwnd));
         return candidate_hwnds;
     }
+
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
         let candidate_hwnds = self.candidate_hwnds();
-        // let candidate_hwnds = hmonitors
-        //     .iter()
-        //     .map(|hmonitor| self.monitor_manager.workspaces_for_monitor(*hmonitor))
-        //     .map(|workspaces| self.workspace_manager.active_workspace(workspaces))
-        //     .map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
-        //     .map(|groups| self.group_manager.hwnds_from_groups(groups))
-        //     .flat_map(|hwnds| hwnds.into_iter())
-        //     .collect();
-
         let nearest_hwnd =
             self.window_manager
                 .find_nearest_in_direction(current_hwnd, direction, candidate_hwnds);
@@ -215,29 +209,53 @@ impl StateManager {
                     "Swapping window '{}' with '{}'",
                     current_title, nearest_title
                 );
-                self.group_manager.swap_windows(current_hwnd, nearest_hwnd)
+                let updated_groups = self.group_manager.swap_windows(current_hwnd, nearest_hwnd);
+                let groups_by_workspaces: Vec<(usize, Vec<usize>)> = self
+                    .workspace_manager
+                    .all()
+                    .iter()
+                    .map(|workspace| {
+                        (
+                            *workspace,
+                            self.workspace_manager
+                                .groups_for_workspace(*workspace)
+                                .clone(),
+                        )
+                    })
+                    .filter(|(_, workspace_groups)| {
+                        updated_groups
+                            .iter()
+                            .any(|updated_group| workspace_groups.contains(updated_group))
+                    })
+                    .collect();
+                groups_by_workspaces
+                    .into_iter()
+                    .map(|(_, workspace_groups)| {
+                        self.group_manager
+                            .calculate_window_positions(workspace_groups)
+                    })
+                    .flat_map(|new_pos| new_pos.into_iter())
+                    .collect()
             }
-            None => {
-                let nearest_hmonitor_result = self
-                    .monitor_manager
-                    .find_nearest_in_direction(direction.clone());
-                match nearest_hmonitor_result {
-                    Some(nearest_hmonitor) => {
-                        debug!("Moving window '{}' {}", current_title, direction);
-                        let monitor_workspaces = self
-                            .monitor_manager
-                            .workspaces_for_monitor(nearest_hmonitor);
-                        let workspace = self.workspace_manager.active_workspace(monitor_workspaces);
-                        let groups = self.workspace_manager.groups_for_workspace(workspace);
-                        let group = match direction {
-                            LEFT | DOWN => groups[groups.len() - 1],
-                            UP | RIGHT => groups[0],
-                        };
-                        self.group_manager.add_window(group, current_hwnd)
-                    }
-                    None => Vec::new(),
-                }
-            }
+            None => Vec::new(), // let nearest_hmonitor_result = self
+                                //     .monitor_manager
+                                //     .find_nearest_in_direction(direction.clone());
+                                // match nearest_hmonitor_result {
+                                //     Some(nearest_hmonitor) => {
+                                //         debug!("Moving window '{}' {}", current_title, direction);
+                                //         let monitor_workspaces = self
+                                //             .monitor_manager
+                                //             .workspaces_for_monitor(nearest_hmonitor);
+                                //         let workspace = self.workspace_manager.active_workspace(monitor_workspaces);
+                                //         let groups = self.workspace_manager.groups_for_workspace(workspace);
+                                //         let group = match direction {
+                                //             LEFT | DOWN => groups[groups.len() - 1],
+                                //             UP | RIGHT => groups[0],
+                                //         };
+                                //         self.group_manager.add_window(group, current_hwnd)
+                                //     }
+                                //     None => Vec::new(),
+                                // }
         };
         for (hwnd, position) in new_positions {
             self.window_manager.set_position(hwnd, position, 0);
