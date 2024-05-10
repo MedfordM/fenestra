@@ -136,6 +136,7 @@ impl WindowManager {
 
     pub fn set_position(&mut self, hwnd: HWND, mut position: RECT, _offset: i32) {
         let window = self.get_window(hwnd);
+        win_api::window::restore(&window.hwnd);
         // let title_bar_height =
         //     win_api::window::get_window_coords(hwnd).rcClient.top - window.rect.top;
         // position.top += title_bar_height;
@@ -165,19 +166,10 @@ impl WindowManager {
         //     bottom: height,
         // };
         win_api::window::set_position(&window.hwnd, window.rect, current_dpi != dpi);
-        let result = win_api::window::restore(&window.hwnd);
-        if result {
-            debug!(
-                "Set position for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
-                window.title,
-                window.rect.left,
-                window.rect.top,
-                window.rect.right,
-                window.rect.bottom
-            );
-        } else {
-            debug!("Unable to set position for '{}'", &window.title);
-        }
+        debug!(
+            "Set position for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
+            window.title, window.rect.left, window.rect.top, window.rect.right, window.rect.bottom
+        );
     }
 
     pub fn find_nearest_in_direction(

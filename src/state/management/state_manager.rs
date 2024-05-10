@@ -251,10 +251,11 @@ impl StateManager {
         for (hwnd, position) in new_positions {
             let group = self.group_manager.group_for_hwnd(&hwnd);
             let workspace = self.workspace_manager.workspace_for_group(group);
-            let workspace_groups = self.workspace_manager.groups_for_workspace(workspace);
+            let groups_in_workspace = self.workspace_manager.groups_for_workspace(workspace).len();
+            let hwnds_in_group = self.group_manager.hwnds_from_groups(&vec![group]).len();
             self.window_manager.set_position(hwnd, position, 0);
-            if workspace_groups.len() == 1 {
-                // self.window_manager.maximize(hwnd);
+            if groups_in_workspace == 1 && hwnds_in_group == 1 {
+                self.window_manager.maximize(hwnd);
             }
         }
     }
