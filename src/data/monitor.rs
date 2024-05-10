@@ -12,6 +12,7 @@ pub struct Monitor {
     pub info: MONITORINFO,
     pub device_mode: DEVMODEA,
     pub scale: DEVICE_SCALE_FACTOR,
+    pub dpi: u32,
     pub neighbors: HashMap<Direction, HMONITOR>,
     pub workspaces: Vec<usize>,
 }

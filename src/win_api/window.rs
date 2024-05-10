@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use log::error;
+use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM,
@@ -12,7 +12,8 @@ use windows::Win32::Graphics::Dwm::{
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::HiDpi::{
-    GetDpiForWindow, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+    AdjustWindowRectExForDpi, GetDpiForWindow, SetProcessDpiAwarenessContext,
+    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
 use windows::Win32::UI::Shell::{
     Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA,
@@ -21,13 +22,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, GetCursorPos,
     GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement,
     GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW,
-    PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow,
-    TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW,
-    IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE,
-    SWP_NOCOPYBITS, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN,
-    TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
-    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_PAINT, WM_RBUTTONUP,
-    WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
+    PostMessageA, PostQuitMessage, RegisterClassA, SendMessageA, SetForegroundWindow, SetWindowPos,
+    ShowWindow, TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR,
+    IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE,
+    SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
+    WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
+    WM_DESTROY, WM_DPICHANGED, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
+    WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -263,15 +265,13 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     // }
 
     let window_info: WINDOWINFO = get_window_coords(hwnd);
-    let rect: RECT = get_rect(hwnd);
+    let (rect, shadow_rect) = get_rect(hwnd);
     let mut border_thickness = 0;
     get_ext_attr(
         hwnd,
         DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
         &mut border_thickness,
     );
-    let mut bounding_rect: RECT = RECT::default();
-    get_ext_attr(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut bounding_rect);
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     let window_placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     let dpi = get_dpi(hwnd);
@@ -282,7 +282,7 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
         process_id,
         border_thickness,
         rect,
-        bounding_rect,
+        shadow_rect,
         info: window_info,
         placement: window_placement,
         dpi,
@@ -291,20 +291,47 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     });
 }
 
-pub fn set_position(hwnd: &HWND, position: RECT) {
+pub fn set_position(hwnd: &HWND, position: RECT, dpi_change: bool) {
+    let width: i32 = position.right - position.left;
+    let height: i32 = position.bottom - position.top;
     handle_result(unsafe {
         SetWindowPos(
             hwnd.clone(),
             None,
             position.left,
-            // dpi_adjusted_window.rect.top,
             position.top,
-            position.right,
-            position.bottom,
-            // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
-            SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW | SWP_DRAWFRAME | SWP_FRAMECHANGED,
+            width,
+            height,
+            SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_FRAMECHANGED,
         )
     });
+    if dpi_change {
+        debug!("DPI was changed, sizing the window again");
+        handle_result(unsafe {
+            SetWindowPos(
+                hwnd.clone(),
+                None,
+                position.left,
+                position.top,
+                width,
+                height,
+                SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_FRAMECHANGED,
+            )
+        });
+    }
+    // handle_result(unsafe {
+    //     SetWindowPos(
+    //         hwnd.clone(),
+    //         None,
+    //         position.left,
+    //         // dpi_adjusted_window.rect.top,
+    //         position.top,
+    //         position.right,
+    //         position.bottom,
+    //         // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
+    //         SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW | SWP_DRAWFRAME | SWP_FRAMECHANGED,
+    //     )
+    // });
 }
 
 pub fn minimize(hwnd: &HWND) -> bool {
@@ -336,16 +363,18 @@ fn get_ext_attr<T>(hwnd: HWND, attr: DWMWINDOWATTRIBUTE, value: &mut T) {
     });
 }
 
-fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
+pub fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
     let mut window_info: WINDOWINFO = WINDOWINFO::default();
     handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
     return window_info;
 }
 
-fn get_rect(hwnd: HWND) -> RECT {
+fn get_rect(hwnd: HWND) -> (RECT, RECT) {
     let mut rect = RECT::default();
+    let mut shadow_rect = RECT::default();
     handle_result(unsafe { GetWindowRect(hwnd, &mut rect) });
-    return rect;
+    get_ext_attr(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut shadow_rect);
+    return (rect, shadow_rect);
 }
 
 pub fn get_window_title(handle: HWND) -> String {
@@ -380,6 +409,14 @@ fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
     return info;
 }
 
-fn get_dpi(hwnd: HWND) -> u32 {
+pub fn get_dpi(hwnd: HWND) -> u32 {
     return unsafe { GetDpiForWindow(hwnd) };
+}
+
+pub fn adjust_for_dpi(rect: &RECT, style: WINDOW_STYLE, dpi: u32) -> RECT {
+    let mut adjusted_rect = rect.clone();
+    handle_result(unsafe {
+        AdjustWindowRectExForDpi(&mut adjusted_rect, style, false, WINDOW_EX_STYLE(0), dpi)
+    });
+    return adjusted_rect;
 }

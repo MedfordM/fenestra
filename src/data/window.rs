@@ -8,7 +8,7 @@ pub struct Window {
     pub thread_id: u32,
     pub process_id: u32,
     pub rect: RECT,
-    pub bounding_rect: RECT,
+    pub shadow_rect: RECT,
     pub border_thickness: u32,
     pub info: WINDOWINFO,
     pub placement: WINDOWPLACEMENT,

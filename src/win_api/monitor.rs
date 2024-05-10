@@ -9,6 +9,7 @@ use windows::Win32::Graphics::Gdi::{
     MonitorFromWindow, DEVMODEA, DISPLAY_DEVICEA, ENUM_CURRENT_SETTINGS, HDC, HMONITOR,
     MONITORINFO, MONITORINFOEXA, MONITOR_DEFAULTTONEAREST,
 };
+use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::Shell::Common::DEVICE_SCALE_FACTOR;
 use windows::Win32::UI::Shell::GetScaleFactorForMonitor;
 use windows::Win32::UI::WindowsAndMessaging::EDD_GET_DEVICE_INTERFACE_NAME;
@@ -52,12 +53,14 @@ pub fn get_monitor(hmonitor: HMONITOR) -> Monitor {
             .to_string();
         let device_mode = get_device_mode(&name);
         let scale = get_scale(hmonitor);
+        let dpi = get_dpi(hmonitor);
         Monitor {
             hmonitor,
             name,
             info: monitor_info.monitorInfo,
             device_mode,
             scale,
+            dpi,
             neighbors: HashMap::new(),
             workspaces: Vec::new(),
         }
@@ -125,4 +128,10 @@ pub fn get_device_mode(device_name: &str) -> DEVMODEA {
 
 fn get_scale(hmonitor: HMONITOR) -> DEVICE_SCALE_FACTOR {
     return handle_result(unsafe { GetScaleFactorForMonitor(hmonitor) });
+}
+
+fn get_dpi(hmonitor: HMONITOR) -> u32 {
+    let mut dpi = 96;
+    handle_result(unsafe { GetDpiForMonitor(hmonitor, MDT_EFFECTIVE_DPI, &mut dpi, &mut dpi) });
+    return dpi;
 }

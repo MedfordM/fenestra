@@ -1,6 +1,5 @@
 use crate::data::common::axis::Axis;
 use crate::data::common::direction::Direction;
-use crate::data::common::direction::Direction::{DOWN, LEFT, RIGHT, UP};
 use crate::data::common::state::AppState;
 use crate::data::group::Group;
 use crate::data::hook::Hook;
@@ -85,10 +84,6 @@ impl StateManager {
         }
     }
 
-    pub fn handle(&self) -> HWND {
-        self.state.handle.clone()
-    }
-
     pub fn hooks(&mut self) -> &mut Vec<Box<dyn Hook>> {
         &mut self.state.hooks
     }
@@ -102,7 +97,6 @@ impl StateManager {
             .workspace_for_group(self.current_group())
     }
 
-    // TODO: This really needs fixed
     pub fn current_group(&self) -> usize {
         let hwnd = win_api::window::foreground_hwnd();
         if self.group_manager.managed_hwnds().contains(&&hwnd) {
@@ -124,10 +118,6 @@ impl StateManager {
         for (hwnd, position) in new_positions {
             self.window_manager.set_position(hwnd, position, 0);
         }
-    }
-
-    pub fn remove_window(&mut self, hwnd: HWND) {
-        self.group_manager.remove_window(hwnd);
     }
 
     pub fn validate(&mut self) {
@@ -201,15 +191,16 @@ impl StateManager {
             direction.clone(),
             candidate_hwnds,
         );
-        let current_title = win_api::window::get_window_title(current_hwnd);
+        // let current_title = win_api::window::get_window_title(current_hwnd);
         let new_positions = match nearest_result {
             Some(nearest_hwnd) => {
-                let nearest_title = win_api::window::get_window_title(nearest_hwnd);
-                debug!(
-                    "Swapping window '{}' with '{}'",
-                    current_title, nearest_title
-                );
+                // let nearest_title = win_api::window::get_window_title(nearest_hwnd);
+                // debug!(
+                //     "Swapping window '{}' with '{}'",
+                //     current_title, nearest_title
+                // );
                 let updated_groups = self.group_manager.swap_windows(current_hwnd, nearest_hwnd);
+                self.window_manager.swap_dpi(current_hwnd, nearest_hwnd);
                 let groups_by_workspaces: Vec<(usize, Vec<usize>)> = self
                     .workspace_manager
                     .all()
@@ -258,7 +249,13 @@ impl StateManager {
                                 // }
         };
         for (hwnd, position) in new_positions {
+            let group = self.group_manager.group_for_hwnd(&hwnd);
+            let workspace = self.workspace_manager.workspace_for_group(group);
+            let workspace_groups = self.workspace_manager.groups_for_workspace(workspace);
             self.window_manager.set_position(hwnd, position, 0);
+            if workspace_groups.len() == 1 {
+                // self.window_manager.maximize(hwnd);
+            }
         }
     }
 

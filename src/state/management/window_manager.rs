@@ -18,10 +18,10 @@ impl WindowManager {
         }
     }
 
-    pub fn current_window(&self) -> &HWND {
-        &self.active_window
-    }
-
+    // pub fn current_window(&self) -> &HWND {
+    //     &self.active_window
+    // }
+    //
     pub fn managed_hwnds(&self, exclude_minimized: bool) -> Vec<HWND> {
         if exclude_minimized {
             return self
@@ -47,13 +47,13 @@ impl WindowManager {
             self.windows.retain(|w| w.hwnd != window.hwnd);
             let new_len = self.windows.len();
             if old_len > new_len {
-                debug!("Removed old window state for '{}'", window.title);
+                // debug!("Removed old window state for '{}'", window.title);
             } else {
                 warn!("Failed to remove old window state for '{}'", window.title);
                 return false;
             }
         }
-        debug!("Adding window '{}'", window.title);
+        // debug!("Adding window '{}'", window.title);
         self.windows.push(window);
         return true;
     }
@@ -62,11 +62,11 @@ impl WindowManager {
         if !self.managed_hwnds(false).contains(&hwnd) {
             return false;
         }
-        self.windows
-            .iter()
-            .find(|window| window.hwnd == *hwnd)
-            .iter()
-            .for_each(|window| debug!("Removing window {}", window.title));
+        // self.windows
+        //     .iter()
+        //     .find(|window| window.hwnd == *hwnd)
+        //     .iter()
+        //     .for_each(|window| debug!("Removing window {}", window.title));
         self.windows.retain(|w| w.hwnd != *hwnd);
         return true;
     }
@@ -96,9 +96,9 @@ impl WindowManager {
         let window = self.get_window(hwnd);
         let result = win_api::window::restore(&window.hwnd);
         if result {
-            debug!("Maximized '{}'", &window.title);
+            debug!("Restore '{}'", &window.title);
         } else {
-            debug!("Unable to maximize '{}'", &window.title);
+            debug!("Unable to restore '{}'", &window.title);
         }
     }
 
@@ -113,24 +113,67 @@ impl WindowManager {
         }
     }
 
-    pub fn set_position(&mut self, hwnd: HWND, position: RECT, offset: i32) {
+    pub fn swap_dpi(&mut self, hwnd_1: HWND, hwnd_2: HWND) {
+        let window_1_dpi = self
+            .windows
+            .iter()
+            .find(|window| window.hwnd == hwnd_1)
+            .map(|window| window.dpi)
+            .expect("Unable to find window");
+        let window_2_dpi = self
+            .windows
+            .iter()
+            .find(|window| window.hwnd == hwnd_2)
+            .map(|window| window.dpi)
+            .expect("Unable to find window");
+        {
+            let window_1 = self.get_window(hwnd_1);
+            window_1.dpi = window_2_dpi;
+            let window_2 = self.get_window(hwnd_2);
+            window_2.dpi = window_1_dpi;
+        }
+    }
+
+    pub fn set_position(&mut self, hwnd: HWND, mut position: RECT, _offset: i32) {
         let window = self.get_window(hwnd);
+        // let title_bar_height =
+        //     win_api::window::get_window_coords(hwnd).rcClient.top - window.rect.top;
+        // position.top += title_bar_height;
+        let dpi = window.dpi;
+        let current_dpi = win_api::window::get_dpi(hwnd);
+        // let scale_factor = dpi as f32 / 96f32;
+        // position.bottom = (position.bottom as f32 * scale_factor) as i32;
+        // position.right = (position.right as f32 * scale_factor) as i32;
         window.rect = position;
-        let adj_left: i32 = window.rect.left + offset;
-        let width: i32 = window.rect.right - adj_left - offset;
-        let height: i32 = window.rect.bottom - window.rect.top - offset;
-        let rect = RECT {
-            left: adj_left,
-            top: position.top,
-            right: width,
-            bottom: height,
-        };
-        win_api::window::set_position(&window.hwnd, rect);
+        let shadow_width_left = window.shadow_rect.left - window.rect.left;
+        let shadow_width_right = window.shadow_rect.right - window.rect.right;
+        let shadow_width_bottom = window.shadow_rect.bottom - window.rect.bottom;
+        position.left += shadow_width_left;
+        position.right += shadow_width_right;
+        position.bottom += shadow_width_bottom;
+        // let mut adjusted_rect = adjust_for_dpi(&position, WINDOW_STYLE(window.style as u32), dpi);
+        // adjusted_rect.bottom = (adjusted_rect.bottom as f32 * scale_factor) as i32;
+        // adjusted_rect.right = (adjusted_rect.right as f32 * scale_factor) as i32;
+        // window.rect = adjusted_rect;
+        // let adj_left: i32 = window.rect.left + offset;
+        // let width: i32 = window.rect.right - adj_left - offset;
+        // let height: i32 = window.rect.bottom - window.rect.top - offset;
+        // let rect = RECT {
+        //     left: adj_left,
+        //     top: position.top,
+        //     right: width,
+        //     bottom: height,
+        // };
+        win_api::window::set_position(&window.hwnd, window.rect, current_dpi != dpi);
         let result = win_api::window::restore(&window.hwnd);
         if result {
             debug!(
                 "Set position for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
-                window.title, rect.left, rect.top, rect.right, rect.bottom
+                window.title,
+                window.rect.left,
+                window.rect.top,
+                window.rect.right,
+                window.rect.bottom
             );
         } else {
             debug!("Unable to set position for '{}'", &window.title);

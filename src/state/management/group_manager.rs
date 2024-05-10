@@ -1,7 +1,5 @@
 use crate::data::common::axis::Axis;
 use crate::data::group::Group;
-use crate::win_api;
-use log::debug;
 use windows::Win32::Foundation::{HWND, RECT};
 
 pub struct GroupManager {
@@ -93,8 +91,8 @@ impl GroupManager {
     pub fn calculate_window_positions(&self, mut group_ids: Vec<usize>) -> Vec<(HWND, RECT)> {
         Vec::dedup(&mut group_ids);
         let mut window_positions = Vec::new();
-        let num_groups = group_ids.len();
-        debug!("Calculating window positions for {} groups", num_groups);
+        // let num_groups = group_ids.len();
+        // debug!("Calculating window positions for {} groups", num_groups);
         for group_id in group_ids {
             let group = &self.groups[group_id];
             let group_width = group.rect.right - group.rect.left;
@@ -104,7 +102,7 @@ impl GroupManager {
             let num_windows = windows.len();
             let (section_width, section_height) = match group.split_axis {
                 Axis::HORIZONTAL => (
-                    group_width as i32,
+                    group_width,
                     (rect_height as f32 / num_windows as f32) as i32,
                 ),
                 Axis::VERTICAL => (
@@ -112,10 +110,10 @@ impl GroupManager {
                     (rect_height as f32) as i32,
                 ),
             };
-            debug!(
-                "Group width {} / {} windows = {} window width",
-                group_width, num_windows, section_width
-            );
+            // debug!(
+            //     "Group width {} / {} windows = {} window width",
+            //     group_width, num_windows, section_width
+            // );
             for window_index in 0..num_windows {
                 let new_position = match group.split_axis {
                     Axis::HORIZONTAL => {
@@ -161,10 +159,6 @@ impl GroupManager {
         self.groups
             .get_mut(index)
             .expect("Unable to fetch group for the requested index")
-    }
-
-    fn hwnds_from_group(&self, group_id: usize) -> &Vec<HWND> {
-        &self.groups[group_id].windows
     }
 
     fn get_group_index_by_hwnd(&self, hwnd: HWND) -> usize {
