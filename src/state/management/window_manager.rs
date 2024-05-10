@@ -113,6 +113,19 @@ impl WindowManager {
         }
     }
 
+    pub fn set_dpi_from_hwnd(&mut self, hwnd_to_set: HWND, hwnd_to_set_from: HWND) {
+        let window_2_dpi = self
+            .windows
+            .iter()
+            .find(|window| window.hwnd == hwnd_to_set_from)
+            .map(|window| window.dpi)
+            .expect("Unable to find window");
+        {
+            let window_1 = self.get_window(hwnd_to_set);
+            window_1.dpi = window_2_dpi;
+        }
+    }
+
     pub fn swap_dpi(&mut self, hwnd_1: HWND, hwnd_2: HWND) {
         let window_1_dpi = self
             .windows
@@ -168,7 +181,11 @@ impl WindowManager {
         win_api::window::set_position(&window.hwnd, window.rect, current_dpi != dpi);
         debug!(
             "Set position for '{}': {{X: {}, Y: {}, width: {}, height: {}}}",
-            window.title, window.rect.left, window.rect.top, window.rect.right, window.rect.bottom
+            window.title,
+            window.rect.left,
+            window.rect.top,
+            window.rect.right - window.rect.left,
+            window.rect.bottom - window.rect.top
         );
     }
 

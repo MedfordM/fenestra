@@ -168,7 +168,7 @@ impl GroupManager {
             .expect("Unable to fetch group for the requested hwnd")
     }
 
-    fn get_window_index_in_group(&self, group_index: usize, hwnd: HWND) -> usize {
+    pub fn get_window_index_in_group(&self, group_index: usize, hwnd: HWND) -> usize {
         self.groups[group_index]
             .windows
             .iter()
