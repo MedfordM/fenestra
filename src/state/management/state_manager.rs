@@ -10,7 +10,7 @@ use crate::state::management::group_manager::GroupManager;
 use crate::state::management::monitor_manager::MonitorManager;
 use crate::state::management::window_manager::WindowManager;
 use crate::state::management::workspace_manager::WorkspaceManager;
-use crate::win_api;
+use crate::{state, win_api};
 use log::{debug, error, warn};
 use std::process::exit;
 use windows::Win32::Foundation::{HWND, RECT};
@@ -26,7 +26,7 @@ pub struct StateManager {
 
 impl StateManager {
     pub fn new() -> Self {
-        let mut monitors = win_api::monitor::get_all();
+        let mut monitors = state::init::monitors();
         let mut workspaces: Vec<Workspace> = Vec::new();
         let mut groups: Vec<Group> = Vec::new();
         let windows = win_api::window::get_all();
@@ -50,11 +50,22 @@ impl StateManager {
                 }
             });
             if mon_width > mon_height {
-                windows_on_monitor.sort_by(|window, other_window| window.rect.left.partial_cmp(&other_window.rect.left).unwrap());
+                windows_on_monitor.sort_by(|window, other_window| {
+                    window
+                        .rect
+                        .left
+                        .partial_cmp(&other_window.rect.left)
+                        .unwrap()
+                });
             } else {
-                windows_on_monitor.sort_by(|window, other_window| window.rect.top.partial_cmp(&other_window.rect.top).unwrap());
+                windows_on_monitor.sort_by(|window, other_window| {
+                    window.rect.top.partial_cmp(&other_window.rect.top).unwrap()
+                });
             }
-            let hwnds_on_monitor = windows_on_monitor.into_iter().map(|window| window.hwnd).collect();
+            let hwnds_on_monitor = windows_on_monitor
+                .into_iter()
+                .map(|window| window.hwnd)
+                .collect();
 
             let default_group = Group {
                 index,
@@ -123,7 +134,7 @@ impl StateManager {
         let new_positions = self.group_manager.add_window(self.current_group(), hwnd);
         self.window_manager.set_positions(new_positions);
     }
-    
+
     pub fn validate(&mut self) {
         // Ensure that every managed window has a group
         let num_windows = self.window_manager.managed_hwnds(false).len();
@@ -195,8 +206,10 @@ impl StateManager {
                 .group_manager
                 .swap_windows(current_hwnd, nearest_hwnd_opt.unwrap());
             let manageable_windows = self.window_manager.managed_hwnds(true);
-            self.window_manager
-                .set_positions(self.group_manager.calculate_window_positions(updated_group, &manageable_windows));
+            self.window_manager.set_positions(
+                self.group_manager
+                    .calculate_window_positions(updated_group, &manageable_windows),
+            );
             return;
         }
         // Adjacent workspace group

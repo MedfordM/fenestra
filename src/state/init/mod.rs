@@ -1,6 +1,7 @@
 mod monitors;
 
 use crate::data::common::state::AppState;
+use crate::data::hook::Hook;
 use crate::data::key::Keybind;
 use crate::data::monitor::Monitor;
 use crate::win_api::window::set_dpi_awareness;
@@ -10,7 +11,6 @@ use windows::Win32::Foundation::{HMODULE, HWND};
 use windows::Win32::UI::WindowsAndMessaging::{
     CW_USEDEFAULT, WINDOW_EX_STYLE, WS_OVERLAPPEDWINDOW,
 };
-use crate::data::hook::Hook;
 
 pub fn application() -> AppState {
     AppState::new(window(), hooks())
@@ -47,7 +47,7 @@ pub fn keybinds() -> Vec<Keybind> {
     return configured_key_binds;
 }
 
-fn monitors() -> Vec<Monitor> {
+pub fn monitors() -> Vec<Monitor> {
     let monitors = win_api::monitor::get_all();
     return monitors::init_neighbors(monitors);
 }

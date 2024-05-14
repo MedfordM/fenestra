@@ -42,8 +42,7 @@ impl WorkspaceManager {
     pub fn active_workspace(&self, workspace_ids: &Vec<usize>) -> usize {
         self.workspaces
             .iter()
-            .filter(|workspace| workspace_ids.contains(&workspace.index))
-            .position(|workspace| workspace.active)
+            .position(|workspace| workspace_ids.contains(&workspace.index) && workspace.active)
             .expect("Unable to fetch active workspace for requested workspace ids")
     }
 
