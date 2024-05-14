@@ -2,15 +2,14 @@
 
 ## Windows
  - Focus window in direction ✅
- - Move window in direction ❌
- - Swap window in direction ❌
- - Dynamic window sizing ❌
+ - Move window in direction ✅
+ - Dynamic window sizing ✅
 
 ## Workspaces
- - Multiple workspaces ❌   
- - Focus workspace ❌  
+ - Multiple workspaces ✅
+ - Focus workspace ❌
  - Send window to workspace ❌
- - Workspaces per monitor ❌
+ - Workspaces per monitor ✅
 
 ## UX
  - Binary downloads ❌
