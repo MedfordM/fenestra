@@ -1,3 +1,4 @@
+use log::debug;
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -9,7 +10,7 @@ use windows::Win32::{
     },
 };
 use windows::Win32::Foundation::{LPARAM, WPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{PostMessageA, WM_APP};
+use windows::Win32::UI::WindowsAndMessaging::{EVENT_SYSTEM_MINIMIZEEND, PostMessageA, WM_APP};
 
 use crate::data::hook::Hook;
 use crate::win_api;
@@ -52,53 +53,42 @@ pub unsafe extern "system" fn callback(
             if window_result.is_none() {
                 return;
             }
-            // let new_positions = STATE_MANAGER.borrow_mut().group_manager.remove_window(hwnd);
-            // for (hwnd, position) in new_positions {
-            //     STATE_MANAGER
-            //         .borrow_mut()
-            //         .window_manager
-            //         .set_position(hwnd, position, 0);
-            // }
+            let _ = PostMessageA(None, WM_APP + 3, WPARAM(1), LPARAM(hwnd.0));
+        },
+        EVENT_SYSTEM_MINIMIZEEND => {
+            let window_result = win_api::window::get_window(hwnd);
+            if window_result.is_none() {
+                return;
+            }
+            let _ = PostMessageA(None, WM_APP + 3, WPARAM(2), LPARAM(hwnd.0));
         }
-        // EVENT_SYSTEM_MINIMIZEEND => {
-        //     let window_result = Window::from(hwnd);
-        //     if window_result.is_none() {
-        //         return;
-        //     }
-        //
-        //     let window = window_result.unwrap();
-        //     let monitor_ref = Monitor::current();
-        //     let mut monitor = monitor_ref.borrow_mut();
-        //     monitor.add_window(window);
-        //     monitor.current_workspace().arrange_windows();
-        // }
         EVENT_SYSTEM_FOREGROUND => {
             if hwnd.0 == 0 {
                 return;
             }
-
+            
             if object_id != OBJID_WINDOW.0 {
                 return;
             }
-
+            
             if child_id != CHILDID_SELF as i32 {
                 return;
             }
-
+            
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
             // debug!("Foreground window was updated: {}", window.title);
-            let _ = PostMessageA(None, WM_APP + 3, WPARAM(0), LPARAM(window_result.unwrap().hwnd.0));
-        }
+            let _ = PostMessageA(None, WM_APP + 3, WPARAM(0), LPARAM(hwnd.0));
+        },
         EVENT_SYSTEM_MOVESIZEEND => {
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
             // STATE_MANAGER.borrow_mut().validate();
-        }
+        },
         _ => (),
     }
 }

@@ -22,13 +22,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, GetCursorPos,
     GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement,
     GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW,
-    PostMessageA, PostQuitMessage, RegisterClassA, SendMessageA, SetForegroundWindow, SetWindowPos,
+    PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos,
     ShowWindow, TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR,
-    IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_DRAWFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE,
-    SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SWP_SHOWWINDOW, SW_MAXIMIZE, SW_RESTORE,
+    IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MAXIMIZE, SW_RESTORE,
     SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
     WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
-    WM_DESTROY, WM_DPICHANGED, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
+    WM_DESTROY, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
     WS_SIZEBOX, WS_VISIBLE,
 };
 
@@ -198,8 +198,8 @@ pub fn focus(hwnd: &HWND) -> bool {
     }
 }
 
-fn get_style(handle: HWND) -> i32 {
-    return get_window_info(handle, GWL_STYLE);
+pub fn get_style(handle: &HWND) -> i32 {
+    return get_window_info(*handle, GWL_STYLE);
 }
 
 fn get_extended_style(handle: HWND) -> i32 {
@@ -239,7 +239,7 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     if title.is_empty() || title.to_lowercase().contains("settings") {
         return None;
     }
-    let style = get_style(hwnd);
+    let style = get_style(&hwnd);
     let style_u32 = style as u32;
     let extended_style = get_extended_style(hwnd);
     if style_u32 & WS_VISIBLE.0 == 0 {

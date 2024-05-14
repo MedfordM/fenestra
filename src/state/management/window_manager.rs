@@ -37,6 +37,9 @@ impl WindowManager {
             return false;
         }
         let window = window_result.unwrap();
+        if window.style & WS_MINIMIZE.0 as i32 != 0 {
+            return false;
+        }
         if self.windows.iter().any(|w| w.hwnd == window.hwnd) {
             // Remove the outdated window state
             let old_len = self.windows.len();
@@ -67,19 +70,20 @@ impl WindowManager {
         return true;
     }
 
-    pub fn minimize(&mut self, hwnd: HWND) {
-        let window = self.get_window(hwnd);
+    pub fn minimize(&mut self, hwnd: &HWND) -> bool {
+        let window = self.get_window(&hwnd);
+        window.style = win_api::window::get_style(&window.hwnd);
         let result = win_api::window::minimize(&window.hwnd);
         if result {
             debug!("Minimized '{}'", &window.title);
-            self.remove_window(&hwnd);
         } else {
             debug!("Unable to minimize '{}'", &window.title);
         }
+        return result;
     }
 
-    pub fn maximize(&mut self, hwnd: HWND) {
-        let window = self.get_window(hwnd);
+    pub fn maximize(&mut self, hwnd: &HWND) {
+        let window = self.get_window(&hwnd);
         let result = win_api::window::maximize(&window.hwnd);
         if result {
             debug!("Maximized '{}'", &window.title);
@@ -88,8 +92,9 @@ impl WindowManager {
         }
     }
 
-    pub fn restore(&mut self, hwnd: HWND) {
-        let window = self.get_window(hwnd);
+    pub fn restore(&mut self, hwnd: &HWND) {
+        let window = self.get_window(&hwnd);
+        window.style = win_api::window::get_style(&window.hwnd);
         let result = win_api::window::restore(&window.hwnd);
         if result {
             debug!("Restore '{}'", &window.title);
@@ -100,7 +105,7 @@ impl WindowManager {
 
     pub fn focus(&mut self, hwnd: HWND) {
         self.active_window = hwnd;
-        let window = self.get_window(hwnd);
+        let window = self.get_window(&hwnd);
         let result = win_api::window::focus(&window.hwnd);
         if result {
             debug!("Focused '{}'", &window.title);
@@ -117,7 +122,7 @@ impl WindowManager {
             .map(|window| window.dpi)
             .expect("Unable to find window");
         {
-            let window_1 = self.get_window(hwnd_to_set);
+            let window_1 = self.get_window(&hwnd_to_set);
             window_1.dpi = window_2_dpi;
         }
     }
@@ -136,9 +141,9 @@ impl WindowManager {
             .map(|window| window.dpi)
             .expect("Unable to find window");
         {
-            let window_1 = self.get_window(hwnd_1);
+            let window_1 = self.get_window(&hwnd_1);
             window_1.dpi = window_2_dpi;
-            let window_2 = self.get_window(hwnd_2);
+            let window_2 = self.get_window(&hwnd_2);
             window_2.dpi = window_1_dpi;
         }
     }
@@ -150,7 +155,11 @@ impl WindowManager {
     }
 
     pub fn set_position(&mut self, hwnd: HWND, mut position: RECT, _offset: i32) {
-        let window = self.get_window(hwnd);
+        let window = self.get_window(&hwnd);
+        if window.style & WS_MINIMIZE.0 as i32 != 0 {
+            debug!("Skipping minimized window '{}'", window.title);
+            return;
+        }
         win_api::window::restore(&window.hwnd);
         // let title_bar_height =
         //     win_api::window::get_window_coords(hwnd).rcClient.top - window.rect.top;
@@ -246,6 +255,7 @@ impl WindowManager {
         //     .collect();
         // titles.sort();
         // debug!("Beginning window validation on windows {:?}", titles);
+        // Remove any old windows
         let mut removed_windows = Vec::new();
         for i in 0..self.windows.len() {
             let hwnd = self.windows[i].hwnd;
@@ -254,6 +264,7 @@ impl WindowManager {
                 removed_windows.push(hwnd);
             }
         }
+        // Add any new windows
         let mut added_windows = Vec::new();
         for window in win_api::window::get_all() {
             if self.windows.iter().any(|w| w.hwnd == window.hwnd) {
@@ -274,10 +285,10 @@ impl WindowManager {
         return (removed_windows, added_windows);
     }
 
-    fn get_window(&mut self, hwnd: HWND) -> &mut Window {
+    fn get_window(&mut self, hwnd: &HWND) -> &mut Window {
         self.windows
             .iter_mut()
-            .find(|window| window.hwnd == hwnd)
+            .find(|window| window.hwnd == *hwnd)
             .expect("Unable to find the requested window")
     }
 }

@@ -30,7 +30,6 @@ impl StateManager {
         let mut workspaces: Vec<Workspace> = Vec::new();
         let mut groups: Vec<Group> = Vec::new();
         let windows = win_api::window::get_all();
-        let all_hwnds: Vec<HWND> = windows.iter().map(|window| window.hwnd).collect();
         let mut index = 0;
         monitors.iter_mut().for_each(|monitor| unsafe {
             let mon_left = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x;
@@ -43,13 +42,19 @@ impl StateManager {
             let mut mon_bottom = mon_top + mon_height as i32;
             let taskbar_offset = monitor.info.rcMonitor.bottom - monitor.info.rcWork.bottom;
             mon_bottom -= taskbar_offset;
-            let mut hwnds_on_monitor = Vec::new();
-            all_hwnds.iter().for_each(|hwnd| {
-                let hmonitor = win_api::monitor::hmonitor_from_hwnd(*hwnd);
+            let mut windows_on_monitor = Vec::new();
+            windows.iter().for_each(|window| {
+                let hmonitor = win_api::monitor::hmonitor_from_hwnd(window.hwnd);
                 if hmonitor == monitor.hmonitor {
-                    hwnds_on_monitor.push(*hwnd);
+                    windows_on_monitor.push(window);
                 }
             });
+            if mon_width > mon_height {
+                windows_on_monitor.sort_by(|window, other_window| window.rect.left.partial_cmp(&other_window.rect.left).unwrap());
+            } else {
+                windows_on_monitor.sort_by(|window, other_window| window.rect.top.partial_cmp(&other_window.rect.top).unwrap());
+            }
+            let hwnds_on_monitor = windows_on_monitor.into_iter().map(|window| window.hwnd).collect();
 
             let default_group = Group {
                 index,
@@ -116,11 +121,9 @@ impl StateManager {
             return;
         }
         let new_positions = self.group_manager.add_window(self.current_group(), hwnd);
-        for (hwnd, position) in new_positions {
-            self.window_manager.set_position(hwnd, position, 0);
-        }
+        self.window_manager.set_positions(new_positions);
     }
-
+    
     pub fn validate(&mut self) {
         // Ensure that every managed window has a group
         let num_windows = self.window_manager.managed_hwnds(false).len();
@@ -130,17 +133,16 @@ impl StateManager {
             exit(100);
         }
         let (removed, added) = self.window_manager.validate_windows();
-        let mut new_positions = Vec::new();
-        removed.into_iter().for_each(|hwnd| {
-            new_positions.append(&mut self.group_manager.remove_window(hwnd));
+        removed.iter().for_each(|hwnd| {
+            self.group_manager.remove_window(*hwnd);
         });
-        // This should never happen, new windows should get added by the event listener
-        let group = self.current_group();
-        added.into_iter().for_each(|hwnd| {
-            warn!("Encountered unmanaged windows during validation, all windows should be added via the event listener");
-            new_positions.append(&mut self.group_manager.add_window(group, hwnd));
+        let current_group = self.current_group();
+        added.iter().for_each(|hwnd| {
+            self.group_manager.add_window(current_group, *hwnd);
         });
-        new_positions.append(&mut self.group_manager.validate());
+        if added.len() > 0 || removed.len() > 0 {
+            warn!("Encountered unmanaged windows during validation, all windows should be added/removed via the event listener");
+        }
         // Ensure that every managed window has a group
         let num_windows = self.window_manager.managed_hwnds(false).len();
         let num_group_hwnds = self.group_manager.num_hwnds();
@@ -148,9 +150,7 @@ impl StateManager {
             error!("WindowManager and GroupManager state have drifted apart");
             exit(100);
         }
-        for (hwnd, position) in new_positions {
-            self.window_manager.set_position(hwnd, position, 0);
-        }
+        // self.window_manager.set_positions(new_positions);
     }
 }
 
@@ -194,8 +194,9 @@ impl StateManager {
             let updated_group = self
                 .group_manager
                 .swap_windows(current_hwnd, nearest_hwnd_opt.unwrap());
+            let manageable_windows = self.window_manager.managed_hwnds(true);
             self.window_manager
-                .set_positions(self.group_manager.calculate_window_positions(updated_group));
+                .set_positions(self.group_manager.calculate_window_positions(updated_group, &manageable_windows));
             return;
         }
         // Adjacent workspace group
@@ -256,18 +257,18 @@ impl StateManager {
         let requested_groups = self.workspace_manager.groups_for_workspace(workspace_id);
         let requested_hwnds = self.group_manager.hwnds_from_groups(requested_groups);
         for hwnd in visible_hwnds {
-            self.window_manager.minimize(hwnd);
+            self.window_manager.minimize(&hwnd);
             self.workspace_manager.toggle_active(current_workspace);
         }
         for hwnd in requested_hwnds {
-            self.window_manager.restore(hwnd);
+            self.window_manager.restore(&hwnd);
             self.workspace_manager.toggle_active(workspace_id);
         }
     }
 
     pub fn move_to_workspace(&mut self, workspace_id: usize) {
         let hwnd = win_api::window::foreground_hwnd();
-        self.window_manager.minimize(hwnd);
+        self.window_manager.minimize(&hwnd);
         let groups = self.workspace_manager.groups_for_workspace(workspace_id);
         let group = groups[groups.len() - 1];
         let mut new_positions = Vec::new();

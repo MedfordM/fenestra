@@ -1,3 +1,4 @@
+use log::debug;
 use crate::data::key::{Key, KeyEvent, KeyEventType};
 use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
@@ -30,7 +31,33 @@ fn main() {
             }
             WINDOW_EVENT => {
                 let hwnd = HWND(message.lParam.0);
-                state_manager.add_window(hwnd);
+                match message.wParam.0 {
+                    0 => {
+                        debug!("Updated foreground window");
+                        state_manager.add_window(hwnd);
+                        let group = state_manager.group_manager.group_for_hwnd(&hwnd);
+                        let manageable_windows = state_manager.window_manager.managed_hwnds(true);
+                        let new_positions = state_manager.group_manager.calculate_window_positions(vec![group], &manageable_windows);
+                        state_manager.window_manager.set_positions(new_positions);
+                    },
+                    1 => {
+                        debug!("Minimized window");
+                        state_manager.window_manager.minimize(&hwnd);
+                        let group = state_manager.group_manager.group_for_hwnd(&hwnd);
+                        let manageable_windows = state_manager.window_manager.managed_hwnds(true);
+                        let new_positions = state_manager.group_manager.calculate_window_positions(vec![group], &manageable_windows);
+                        state_manager.window_manager.set_positions(new_positions);
+                    },
+                    2 => {
+                        debug!("Restored window");
+                        state_manager.window_manager.restore(&hwnd);
+                        let group = state_manager.group_manager.group_for_hwnd(&hwnd);
+                        let manageable_windows = state_manager.window_manager.managed_hwnds(true);
+                        let new_positions = state_manager.group_manager.calculate_window_positions(vec![group], &manageable_windows);
+                        state_manager.window_manager.set_positions(new_positions);
+                    },
+                    _ => {}
+                }
                 state_manager.validate();
             }
             _ => (),
