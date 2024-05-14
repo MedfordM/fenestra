@@ -12,6 +12,7 @@ use crate::state::management::window_manager::WindowManager;
 use crate::state::management::workspace_manager::WorkspaceManager;
 use crate::{state, win_api};
 use log::{debug, error, warn};
+use std::collections::HashMap;
 use std::process::exit;
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Gdi::HMONITOR;
@@ -126,13 +127,37 @@ impl StateManager {
         return groups[groups.len() - 1];
     }
 
+    // Separate windows by group, then maximize or set position as needed
+    pub fn arrange_windows(&mut self, positions: Vec<(HWND, RECT)>) {
+        let mut positions_by_group: HashMap<usize, Vec<(HWND, RECT)>> = HashMap::new();
+        for (hwnd, position) in positions {
+            let current_group = self.group_manager.group_for_hwnd(&hwnd);
+            if positions_by_group.contains_key(&current_group) {
+                positions_by_group
+                    .get_mut(&current_group)
+                    .unwrap()
+                    .push((hwnd, position));
+            } else {
+                positions_by_group.insert(current_group, vec![(hwnd, position)]);
+            }
+        }
+        for (group, group_positions) in positions_by_group {
+            let workspace = self.workspace_manager.workspace_for_group(group);
+            let groups_on_workspace = self.workspace_manager.groups_for_workspace(workspace);
+            self.window_manager.set_positions(&group_positions);
+            if group_positions.len() == 1 && groups_on_workspace.len() == 1 {
+                self.window_manager.maximize(&group_positions[0].0);
+            }
+        }
+    }
+
     pub fn add_window(&mut self, hwnd: HWND) {
         let added_window = self.window_manager.add_window(hwnd);
         if !added_window {
             return;
         }
         let new_positions = self.group_manager.add_window(self.current_group(), hwnd);
-        self.window_manager.set_positions(new_positions);
+        self.arrange_windows(new_positions);
     }
 
     pub fn validate(&mut self) {
@@ -161,7 +186,6 @@ impl StateManager {
             error!("WindowManager and GroupManager state have drifted apart");
             exit(100);
         }
-        // self.window_manager.set_positions(new_positions);
     }
 }
 
@@ -206,7 +230,7 @@ impl StateManager {
                 .group_manager
                 .swap_windows(current_hwnd, nearest_hwnd_opt.unwrap());
             let manageable_windows = self.window_manager.managed_hwnds(true);
-            self.window_manager.set_positions(
+            self.arrange_windows(
                 self.group_manager
                     .calculate_window_positions(updated_group, &manageable_windows),
             );
@@ -219,13 +243,13 @@ impl StateManager {
             .group_in_direction(current_group, &direction);
         if adjacent_group_opt.is_some() {
             let adjacent_group = adjacent_group_opt.unwrap();
-            self.group_manager.remove_window(current_hwnd);
-            self.window_manager
-                .set_positions(self.group_manager.add_window_direction(
-                    adjacent_group,
-                    &current_hwnd,
-                    &direction,
-                ));
+            let mut new_positions = self.group_manager.remove_window(current_hwnd);
+            new_positions.extend_from_slice(
+                self.group_manager
+                    .add_window_direction(adjacent_group, &current_hwnd, &direction)
+                    .as_slice(),
+            );
+            self.arrange_windows(new_positions);
             return;
         }
         // Adjacent monitor group
@@ -235,7 +259,7 @@ impl StateManager {
             .neighbor_in_direction(&current_hmonitor, &direction);
         if nearest_hmonitor_opt.is_some() {
             debug!("Checking neighboring monitor");
-            self.group_manager.remove_window(current_hwnd);
+            let mut new_positions = self.group_manager.remove_window(current_hwnd);
             let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
             let workspaces = self
                 .monitor_manager
@@ -246,12 +270,13 @@ impl StateManager {
                 LEFT | UP => groups[groups.len() - 1],
                 DOWN | RIGHT => groups[0],
             };
-            self.window_manager
-                .set_positions(self.group_manager.add_window_direction(
-                    target_group,
-                    &current_hwnd,
-                    &direction,
-                ));
+            new_positions.extend_from_slice(
+                self.group_manager
+                    .add_window_direction(target_group, &current_hwnd, &direction)
+                    .as_slice(),
+            );
+            self.window_manager.update_dpi(current_hwnd);
+            self.arrange_windows(new_positions);
             return;
         }
         error!(

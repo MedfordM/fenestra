@@ -114,6 +114,10 @@ impl WindowManager {
         }
     }
 
+    pub fn update_dpi(&mut self, hwnd: HWND) {
+        self.get_window(&hwnd).dpi = 0;
+    }
+
     pub fn set_dpi_from_hwnd(&mut self, hwnd_to_set: HWND, hwnd_to_set_from: HWND) {
         let window_2_dpi = self
             .windows
@@ -148,9 +152,9 @@ impl WindowManager {
         }
     }
 
-    pub fn set_positions(&mut self, positions: Vec<(HWND, RECT)>) {
+    pub fn set_positions(&mut self, positions: &Vec<(HWND, RECT)>) {
         for (hwnd, position) in positions {
-            self.set_position(hwnd, position, 0);
+            self.set_position(*hwnd, *position, 0);
         }
     }
 
