@@ -1,4 +1,5 @@
 use crate::data::common::axis::Axis;
+use crate::data::common::direction::Direction;
 use crate::data::group::Group;
 use windows::Win32::Foundation::{HWND, RECT};
 
@@ -29,11 +30,52 @@ impl GroupManager {
         return hwnds.len();
     }
 
+    pub fn candidate_in_direction(&self, hwnd: &HWND, direction: &Direction) -> Option<HWND> {
+        let current_group = self.group_for_hwnd(hwnd);
+        let index_in_group = self.get_window_index_in_group(current_group, hwnd);
+        match direction {
+            Direction::LEFT | Direction::UP => {
+                if index_in_group == 0 {
+                    return None;
+                }
+                Some(self.groups[current_group].windows[index_in_group - 1])
+            }
+            Direction::RIGHT | Direction::DOWN => {
+                let highest_index = self.groups[current_group].windows.len() - 1;
+                if index_in_group == highest_index {
+                    return None;
+                }
+                Some(self.groups[current_group].windows[index_in_group + 1])
+            }
+        }
+    }
+
     pub fn group_for_hwnd(&self, hwnd: &HWND) -> usize {
         self.groups
             .iter()
             .position(|group| group.windows.contains(hwnd))
             .expect("Unable to fetch group for the requested hwnd")
+    }
+
+    pub fn add_window_direction(
+        &mut self,
+        group_index: usize,
+        hwnd: &HWND,
+        direction: &Direction,
+    ) -> Vec<(HWND, RECT)> {
+        let group = &mut self.groups[group_index];
+        if group.windows.contains(&hwnd) {
+            return Vec::new();
+        }
+        match direction {
+            Direction::LEFT | Direction::UP => {
+                group.windows.push(*hwnd);
+            }
+            Direction::RIGHT | Direction::DOWN => {
+                group.windows.insert(0, *hwnd);
+            }
+        }
+        return self.calculate_window_positions(vec![group_index]);
     }
 
     pub fn add_window(&mut self, group_index: usize, hwnd: HWND) -> Vec<(HWND, RECT)> {
@@ -55,8 +97,8 @@ impl GroupManager {
     pub fn swap_windows(&mut self, hwnd_1: HWND, hwnd_2: HWND) -> Vec<usize> {
         let group_index_1 = self.get_group_index_by_hwnd(hwnd_1);
         let group_index_2 = self.get_group_index_by_hwnd(hwnd_2);
-        let window_index_1 = self.get_window_index_in_group(group_index_1, hwnd_1);
-        let window_index_2 = self.get_window_index_in_group(group_index_2, hwnd_2);
+        let window_index_1 = self.get_window_index_in_group(group_index_1, &hwnd_1);
+        let window_index_2 = self.get_window_index_in_group(group_index_2, &hwnd_2);
         let window_set_1 = &mut self.groups[group_index_1].windows.clone();
         let window_set_2 = &mut self.groups[group_index_2].windows.clone();
         let window_1 = window_set_1[window_index_1];
@@ -168,11 +210,11 @@ impl GroupManager {
             .expect("Unable to fetch group for the requested hwnd")
     }
 
-    pub fn get_window_index_in_group(&self, group_index: usize, hwnd: HWND) -> usize {
+    pub fn get_window_index_in_group(&self, group_index: usize, hwnd: &HWND) -> usize {
         self.groups[group_index]
             .windows
             .iter()
-            .position(|h| h == &hwnd)
+            .position(|h| h == hwnd)
             .expect("Unable to fetch hwnd index within group")
     }
 }

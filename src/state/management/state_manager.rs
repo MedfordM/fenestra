@@ -186,112 +186,65 @@ impl StateManager {
 
     pub fn move_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
-        let hwnds_in_group = self.group_manager.hwnds_from_groups(&vec![current_group]);
-        let index_in_group = self
+        // Current group
+        let nearest_hwnd_opt = self
             .group_manager
-            .get_window_index_in_group(current_group, current_hwnd);
-        let target_hwnd_option = match direction {
-            LEFT | DOWN => match index_in_group {
-                0 => None,
-                _ => hwnds_in_group.get(index_in_group - 1),
-            },
-            UP | RIGHT => hwnds_in_group.get(index_in_group + 1),
-        };
-        let mut new_positions = Vec::new();
-        if hwnds_in_group.len() > 1 && target_hwnd_option.is_some() {
-            let target_hwnd = target_hwnd_option.unwrap();
-            self.group_manager.swap_windows(current_hwnd, *target_hwnd);
-            self.window_manager
-                .set_dpi_from_hwnd(current_hwnd, *target_hwnd);
-            new_positions = self
+            .candidate_in_direction(&current_hwnd, &direction);
+        if nearest_hwnd_opt.is_some() {
+            let updated_group = self
                 .group_manager
-                .calculate_window_positions(vec![current_group]);
-        } else {
-            let candidate_hwnds = self.candidate_hwnds();
-            let nearest_result = self.window_manager.find_nearest_in_direction(
-                current_hwnd,
-                direction.clone(),
-                candidate_hwnds,
-            );
+                .swap_windows(current_hwnd, nearest_hwnd_opt.unwrap());
+            self.window_manager
+                .set_positions(self.group_manager.calculate_window_positions(updated_group));
+            return;
+        }
+        // Adjacent workspace group
+        let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
+        let adjacent_group_opt = self
+            .workspace_manager
+            .group_in_direction(current_group, &direction);
+        if adjacent_group_opt.is_some() {
+            let adjacent_group = adjacent_group_opt.unwrap();
             self.group_manager.remove_window(current_hwnd);
-            // let current_title = win_api::window::get_window_title(current_hwnd);
-            new_positions = match nearest_result {
-                Some(nearest_hwnd) => {
-                    // let nearest_title = win_api::window::get_window_title(nearest_hwnd);
-                    // debug!(
-                    //     "Swapping window '{}' with '{}'",
-                    //     current_title, nearest_title
-                    // );
-                    let group = self.group_manager.group_for_hwnd(&nearest_hwnd);
-                    self.window_manager
-                        .set_dpi_from_hwnd(current_hwnd, nearest_hwnd);
-                    self.group_manager.add_window(group, current_hwnd)
-                    // let updated_groups = self.group_manager.swap_windows(current_hwnd, nearest_hwnd);
-                    // let groups_by_workspaces: Vec<(usize, Vec<usize>)> = self
-                    //     .workspace_manager
-                    //     .all()
-                    //     .iter()
-                    //     .map(|workspace| {
-                    //         (
-                    //             *workspace,
-                    //             self.workspace_manager
-                    //                 .groups_for_workspace(*workspace)
-                    //                 .clone(),
-                    //         )
-                    //     })
-                    //     .filter(|(_, workspace_groups)| {
-                    //         updated_groups
-                    //             .iter()
-                    //             .any(|updated_group| workspace_groups.contains(updated_group))
-                    //     })
-                    //     .collect();
-                    // groups_by_workspaces
-                    //     .into_iter()
-                    //     .map(|(_, workspace_groups)| {
-                    //         self.group_manager
-                    //             .calculate_window_positions(workspace_groups)
-                    //     })
-                    //     .flat_map(|new_pos| new_pos.into_iter())
-                    //     .collect()
-                }
-                None => {
-                    let nearest_hmonitor_result = self
-                        .monitor_manager
-                        .find_nearest_in_direction(direction.clone());
-                    match nearest_hmonitor_result {
-                        Some(nearest_hmonitor) => {
-                            // debug!("Moving window '{}' {}", current_title, direction);
-                            let monitor_workspaces = self
-                                .monitor_manager
-                                .workspaces_for_monitor(nearest_hmonitor);
-                            let workspace =
-                                self.workspace_manager.active_workspace(monitor_workspaces);
-                            let groups = self.workspace_manager.groups_for_workspace(workspace);
-                            // let group = match direction {
-                            //     LEFT | DOWN => groups[groups.len() - 1],
-                            //     UP | RIGHT => groups[0],
-                            // };
-                            self.group_manager
-                                .add_window(*groups.first().unwrap(), current_hwnd)
-                        }
-                        None => Vec::new(),
-                    }
-                }
+            self.window_manager
+                .set_positions(self.group_manager.add_window_direction(
+                    adjacent_group,
+                    &current_hwnd,
+                    &direction,
+                ));
+            return;
+        }
+        // Adjacent monitor group
+        let current_hmonitor = self.monitor_manager.get_current();
+        let nearest_hmonitor_opt = self
+            .monitor_manager
+            .neighbor_in_direction(&current_hmonitor, &direction);
+        if nearest_hmonitor_opt.is_some() {
+            debug!("Checking neighboring monitor");
+            self.group_manager.remove_window(current_hwnd);
+            let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
+            let workspaces = self
+                .monitor_manager
+                .workspaces_for_monitor(nearest_hmonitor);
+            let workspace = self.workspace_manager.active_workspace(workspaces);
+            let groups = self.workspace_manager.groups_for_workspace(workspace);
+            let target_group = match direction {
+                LEFT | UP => groups[groups.len() - 1],
+                DOWN | RIGHT => groups[0],
             };
+            self.window_manager
+                .set_positions(self.group_manager.add_window_direction(
+                    target_group,
+                    &current_hwnd,
+                    &direction,
+                ));
+            return;
         }
-        // TODO: Create a function for each object in the display hierarchy that returns potential candidates
-        // Search each one, starting at the group level and progressively broaden the scope
-        for (hwnd, position) in new_positions {
-            let group = self.group_manager.group_for_hwnd(&hwnd);
-            let workspace = self.workspace_manager.workspace_for_group(group);
-            let groups_in_workspace = self.workspace_manager.groups_for_workspace(workspace).len();
-            let hwnds_in_group = self.group_manager.hwnds_from_groups(&vec![group]).len();
-            self.window_manager.set_position(hwnd, position, 0);
-            if groups_in_workspace == 1 && hwnds_in_group == 1 {
-                self.window_manager.maximize(hwnd);
-            }
-        }
+        error!(
+            "Unable to move '{}' {:?}",
+            win_api::window::get_window_title(current_hwnd),
+            direction
+        );
     }
 
     pub fn focus_workspace(&mut self, workspace_id: usize) {

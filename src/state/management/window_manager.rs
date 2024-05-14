@@ -18,10 +18,6 @@ impl WindowManager {
         }
     }
 
-    // pub fn current_window(&self) -> &HWND {
-    //     &self.active_window
-    // }
-    //
     pub fn managed_hwnds(&self, exclude_minimized: bool) -> Vec<HWND> {
         if exclude_minimized {
             return self
@@ -144,6 +140,12 @@ impl WindowManager {
             window_1.dpi = window_2_dpi;
             let window_2 = self.get_window(hwnd_2);
             window_2.dpi = window_1_dpi;
+        }
+    }
+
+    pub fn set_positions(&mut self, positions: Vec<(HWND, RECT)>) {
+        for (hwnd, position) in positions {
+            self.set_position(hwnd, position, 0);
         }
     }
 

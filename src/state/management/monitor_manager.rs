@@ -16,6 +16,19 @@ impl MonitorManager {
         win_api::monitor::hmonitor_from_hwnd(win_api::window::foreground_hwnd())
     }
 
+    pub fn neighbor_in_direction(
+        &self,
+        hmonitor: &HMONITOR,
+        direction: &Direction,
+    ) -> Option<HMONITOR> {
+        let monitor = self
+            .monitors
+            .iter()
+            .find(|monitor| monitor.hmonitor == *hmonitor)
+            .expect("No such monitor");
+        monitor.neighbors.get(direction).cloned()
+    }
+
     fn get_current_monitor(&mut self) -> &mut Monitor {
         let hmonitor = self.get_current();
         return self
