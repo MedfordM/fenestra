@@ -36,12 +36,6 @@ fn main() {
                 match message.wParam.0 {
                     0 => {
                         state_manager.add_window(hwnd);
-                        let group = state_manager.group_manager.group_for_hwnd(&hwnd);
-                        let manageable_windows = state_manager.window_manager.managed_hwnds(true);
-                        let new_positions = state_manager
-                            .group_manager
-                            .calculate_window_positions(vec![group], &manageable_windows);
-                        state_manager.arrange_windows(new_positions);
                     }
                     1 => {
                         state_manager.window_manager.minimize(&hwnd);
