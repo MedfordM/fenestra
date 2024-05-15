@@ -63,9 +63,10 @@ impl StateManager {
                     window.rect.top.partial_cmp(&other_window.rect.top).unwrap()
                 });
             }
+            let adjusted_index = monitor_index * 10;
             // Create default group and workspace
             groups.push(Group {
-                index: 0,
+                index: adjusted_index,
                 split_axis: match is_landscape {
                     true => Axis::VERTICAL,
                     false => Axis::HORIZONTAL,
@@ -82,16 +83,15 @@ impl StateManager {
                     .collect(),
             });
             workspaces.push(Workspace {
-                index: 0,
-                groups: vec![0],
+                index: adjusted_index,
+                groups: vec![adjusted_index],
                 active: true,
             });
-            monitor.workspaces.push(0);
+            monitor.workspaces.push(adjusted_index);
             // Create empty groups and workspaces
             for i in 1..10 {
-                let adjusted_index = (monitor_index * 10) + i;
                 let group = Group {
-                    index: adjusted_index,
+                    index: adjusted_index + i,
                     split_axis: match is_landscape {
                         true => Axis::VERTICAL,
                         false => Axis::HORIZONTAL,
@@ -105,13 +105,13 @@ impl StateManager {
                     windows: vec![],
                 };
                 let workspace = Workspace {
-                    index: adjusted_index,
-                    groups: vec![adjusted_index],
+                    index: adjusted_index + i,
+                    groups: vec![adjusted_index + i],
                     active: false,
                 };
-                monitor.workspaces.push(adjusted_index);
-                workspaces.push(workspace);
                 groups.push(group);
+                workspaces.push(workspace);
+                monitor.workspaces.push(adjusted_index + i);
             }
             monitor_index += 1;
         });
@@ -220,57 +220,69 @@ impl StateManager {
 
 impl StateManager {
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
-        let current_hwnd = win_api::window::foreground_hwnd();
-        // Current group
-        let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
-            &current_hwnd,
-            &direction,
-            self.window_manager.managed_hwnds(true),
+        let current_hwnd = self.window_manager.current_window();
+        debug!(
+            "Attempting to focus window {:?} from '{}'",
+            direction,
+            win_api::window::get_window_title(current_hwnd)
         );
-        if nearest_hwnd_opt.is_some() {
-            self.window_manager.focus(nearest_hwnd_opt.unwrap());
-            return;
+        {
+            // Search for window in current group
+            let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
+                &current_hwnd,
+                &direction,
+                self.window_manager.managed_hwnds(true),
+            );
+            if nearest_hwnd_opt.is_some() {
+                self.window_manager.focus(nearest_hwnd_opt.unwrap());
+                return;
+            }
         }
-        // Adjacent workspace group
-        let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
-        let adjacent_group_opt = self
-            .workspace_manager
-            .group_in_direction(current_group, &direction);
-        if adjacent_group_opt.is_some() {
-            let adjacent_group = adjacent_group_opt.unwrap();
-            let hwnds = self.group_manager.hwnds_from_groups(&vec![adjacent_group]);
-            let hwnd = match direction {
-                LEFT | UP => hwnds[hwnds.len() - 1],
-                DOWN | RIGHT => hwnds[0],
-            };
-            self.window_manager.focus(hwnd);
-            return;
+        {
+            // Search for window in an adjacent group on the same workspace
+            let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
+            let adjacent_group_opt = self
+                .workspace_manager
+                .group_in_direction(current_group, &direction);
+            if adjacent_group_opt.is_some() {
+                let adjacent_group = adjacent_group_opt.unwrap();
+                let hwnds = self.group_manager.hwnds_from_groups(&vec![adjacent_group]);
+                let hwnd = match direction {
+                    LEFT | UP => hwnds[hwnds.len() - 1],
+                    DOWN | RIGHT => hwnds[0],
+                };
+                self.window_manager.focus(hwnd);
+                return;
+            }
         }
-        // Adjacent monitor group
-        let current_hmonitor = self.monitor_manager.get_current();
-        let nearest_hmonitor_opt = self
-            .monitor_manager
-            .neighbor_in_direction(&current_hmonitor, &direction);
-        if nearest_hmonitor_opt.is_some() {
-            debug!("Checking neighboring monitor");
-            let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
-            let workspaces = self
+        {
+            // Search for a window in a neighboring monitor group
+            let current_hmonitor = self.monitor_manager.monitor_from_hwnd(&current_hwnd);
+            let nearest_hmonitor_opt = self
                 .monitor_manager
-                .workspaces_for_monitor(nearest_hmonitor);
-            let workspace = self.workspace_manager.active_workspace(workspaces);
-            let groups = self.workspace_manager.groups_for_workspace(workspace);
-            let target_group = match direction {
-                LEFT | UP => groups[groups.len() - 1],
-                DOWN | RIGHT => groups[0],
-            };
-            let hwnds = self.group_manager.hwnds_from_groups(&vec![target_group]);
-            let hwnd = match direction {
-                LEFT | UP => hwnds[hwnds.len() - 1],
-                DOWN | RIGHT => hwnds[0],
-            };
-            self.window_manager.focus(hwnd);
-            return;
+                .neighbor_in_direction(&current_hmonitor, &direction);
+            if nearest_hmonitor_opt.is_some() {
+                debug!("Checking neighboring monitor");
+                let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
+                let workspaces = self
+                    .monitor_manager
+                    .workspaces_for_monitor(nearest_hmonitor);
+                let workspace = self.workspace_manager.active_workspace(workspaces);
+                let groups = self.workspace_manager.groups_for_workspace(workspace);
+                let target_group = match direction {
+                    LEFT | UP => groups[groups.len() - 1],
+                    DOWN | RIGHT => groups[0],
+                };
+                let hwnds = self.group_manager.hwnds_from_groups(&vec![target_group]);
+                let hwnd = match direction {
+                    LEFT | UP => hwnds[hwnds.len() - 1],
+                    DOWN | RIGHT => hwnds[0],
+                };
+                self.window_manager.focus(hwnd);
+                return;
+            }
         }
+        // No match found
         error!(
             "Unable to focus window {:?} from '{}'",
             direction,

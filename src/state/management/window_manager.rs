@@ -6,15 +6,20 @@ use windows::Win32::UI::WindowsAndMessaging::WS_MINIMIZE;
 
 pub struct WindowManager {
     windows: Vec<Window>,
-    active_window: HWND,
 }
 
 impl WindowManager {
     pub fn new(windows: Vec<Window>) -> Self {
-        Self {
-            windows,
-            active_window: win_api::window::foreground_hwnd(),
-        }
+        Self { windows }
+    }
+
+    pub fn current_window(&self) -> HWND {
+        let hwnd = win_api::window::foreground_hwnd();
+        self.windows
+            .iter()
+            .find(|window| window.hwnd == hwnd)
+            .expect("Current window is unmanaged!")
+            .hwnd
     }
 
     pub fn managed_hwnds(&self, exclude_minimized: bool) -> Vec<HWND> {
@@ -87,7 +92,6 @@ impl WindowManager {
     }
 
     pub fn focus(&mut self, hwnd: HWND) {
-        self.active_window = hwnd;
         let window = self.get_window(&hwnd);
         let result = win_api::window::focus(&window.hwnd);
         if result {
