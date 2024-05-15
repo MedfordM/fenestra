@@ -23,6 +23,7 @@ pub struct StateManager {
     pub group_manager: GroupManager,
     pub workspace_manager: WorkspaceManager,
     pub monitor_manager: MonitorManager,
+    pub ignore_events: bool,
 }
 
 impl StateManager {
@@ -124,6 +125,7 @@ impl StateManager {
             group_manager,
             workspace_manager,
             monitor_manager,
+            ignore_events: false,
         }
     }
 
@@ -136,8 +138,9 @@ impl StateManager {
     }
 
     pub fn current_workspace(&self) -> usize {
-        self.workspace_manager
-            .workspace_for_group(self.current_group())
+        let hmonitor = self.current_monitor();
+        let workspaces = self.monitor_manager.workspaces_for_monitor(hmonitor);
+        self.workspace_manager.active_workspace(workspaces)
     }
 
     pub fn current_group(&self) -> usize {
@@ -195,7 +198,7 @@ impl StateManager {
         }
         let (removed, added) = self.window_manager.validate_windows();
         removed.iter().for_each(|hwnd| {
-            self.group_manager.remove_window(*hwnd);
+            self.group_manager.remove_window(&hwnd);
         });
         let current_group = self.current_group();
         added.iter().for_each(|hwnd| {
@@ -301,7 +304,7 @@ impl StateManager {
             .group_in_direction(current_group, &direction);
         if adjacent_group_opt.is_some() {
             let adjacent_group = adjacent_group_opt.unwrap();
-            let mut new_positions = self.group_manager.remove_window(current_hwnd);
+            let mut new_positions = self.group_manager.remove_window(&current_hwnd);
             new_positions.extend_from_slice(
                 self.group_manager
                     .add_window_direction(adjacent_group, &current_hwnd, &direction)
@@ -317,7 +320,7 @@ impl StateManager {
             .neighbor_in_direction(&current_hmonitor, &direction);
         if nearest_hmonitor_opt.is_some() {
             debug!("Checking neighboring monitor");
-            let mut new_positions = self.group_manager.remove_window(current_hwnd);
+            let mut new_positions = self.group_manager.remove_window(&current_hwnd);
             let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
             let workspaces = self
                 .monitor_manager
@@ -344,34 +347,67 @@ impl StateManager {
         );
     }
 
-    pub fn focus_workspace(&mut self, workspace_id: usize) {
+    pub fn focus_workspace(&mut self, workspace_index: usize) {
+        let current_hmonitor = self.current_monitor();
         let current_workspace = self.current_workspace();
+        let workspaces = self
+            .monitor_manager
+            .workspaces_for_monitor(current_hmonitor);
+        let target_workspace = workspaces[workspace_index];
+        if current_workspace == target_workspace {
+            debug!(
+                "Ignoring request to focus current workspace {}",
+                workspace_index + 1
+            );
+            return;
+        }
+        debug!("Focusing workspace {}", workspace_index + 1);
         let visible_groups = self
             .workspace_manager
             .groups_for_workspace(current_workspace);
+        let requested_groups = self
+            .workspace_manager
+            .groups_for_workspace(target_workspace);
         let visible_hwnds = self.group_manager.hwnds_from_groups(visible_groups);
-        let requested_groups = self.workspace_manager.groups_for_workspace(workspace_id);
         let requested_hwnds = self.group_manager.hwnds_from_groups(requested_groups);
-        for hwnd in visible_hwnds {
-            self.window_manager.minimize(&hwnd);
-            self.workspace_manager.toggle_active(current_workspace);
-        }
-        for hwnd in requested_hwnds {
-            self.window_manager.restore(&hwnd);
-            self.workspace_manager.toggle_active(workspace_id);
-        }
+        self.ignore_events = true;
+        visible_hwnds
+            .iter()
+            .for_each(|hwnd| self.window_manager.minimize(&hwnd));
+        self.workspace_manager.toggle_active(current_workspace);
+        requested_hwnds
+            .iter()
+            .for_each(|hwnd| self.window_manager.restore(&hwnd));
+        self.workspace_manager.toggle_active(target_workspace);
+        self.ignore_events = false;
     }
 
-    pub fn move_to_workspace(&mut self, workspace_id: usize) {
-        let hwnd = win_api::window::foreground_hwnd();
-        self.window_manager.minimize(&hwnd);
-        let groups = self.workspace_manager.groups_for_workspace(workspace_id);
-        let group = groups[groups.len() - 1];
-        let mut new_positions = Vec::new();
-        new_positions.append(&mut self.group_manager.remove_window(hwnd));
-        new_positions.append(&mut self.group_manager.add_window(group, hwnd));
-        for (hwnd, position) in new_positions {
-            self.window_manager.set_position(hwnd, position, 0);
+    pub fn move_to_workspace(&mut self, workspace_index: usize) {
+        let current_hmonitor = self.current_monitor();
+        let workspaces = self
+            .monitor_manager
+            .workspaces_for_monitor(current_hmonitor);
+        let target_workspace = workspaces[workspace_index];
+        if self.current_workspace() == target_workspace {
+            debug!(
+                "Ignoring request to send monitor to current workspace {}",
+                workspace_index + 1
+            );
+            return;
         }
+        let hwnd = win_api::window::foreground_hwnd();
+        debug!(
+            "Moving '{}' to workspace {}",
+            win_api::window::get_window_title(hwnd),
+            workspace_index + 1
+        );
+        self.ignore_events = true;
+        self.window_manager.minimize(&hwnd);
+        let new_positions = self.group_manager.remove_window(&hwnd);
+        self.arrange_windows(new_positions);
+        let groups = self.workspace_manager.groups_for_workspace(workspace_index);
+        let new_group = groups[0];
+        self.group_manager.add_window(new_group, hwnd).as_slice();
+        self.ignore_events = false;
     }
 }

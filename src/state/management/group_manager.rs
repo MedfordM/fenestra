@@ -100,10 +100,10 @@ impl GroupManager {
             .calculate_window_positions(vec![group_index], &self.groups[group_index].windows);
     }
 
-    pub fn remove_window(&mut self, hwnd: HWND) -> Vec<(HWND, RECT)> {
-        let group_index = self.get_group_index_by_hwnd(hwnd);
+    pub fn remove_window(&mut self, hwnd: &HWND) -> Vec<(HWND, RECT)> {
+        let group_index = self.get_group_index_by_hwnd(*hwnd);
         let group = self.get_group(group_index);
-        group.windows.retain(|h| h != &hwnd);
+        group.windows.retain(|h| h.0 != hwnd.0);
         return self
             .calculate_window_positions(vec![group_index], &self.groups[group_index].windows);
     }
@@ -180,9 +180,6 @@ impl GroupManager {
             // );
             for window_index in 0..num_windows {
                 let hwnd = windows[window_index];
-                if !manageable_hwnds.contains(&hwnd) {
-                    continue;
-                }
                 let new_position = match group.split_axis {
                     Axis::HORIZONTAL => {
                         let top = group.rect.top + (section_height * window_index as i32);

@@ -54,7 +54,7 @@ impl WindowManager {
         return window_style & WS_MINIMIZE.0 as i32 == 0;
     }
 
-    pub fn minimize(&mut self, hwnd: &HWND) -> bool {
+    pub fn minimize(&mut self, hwnd: &HWND) {
         let window = self.get_window(&hwnd);
         window.style = win_api::window::get_style(&window.hwnd);
         let result = win_api::window::minimize(&window.hwnd);
@@ -63,7 +63,6 @@ impl WindowManager {
         } else {
             debug!("Unable to minimize '{}'", &window.title);
         }
-        return result;
     }
 
     pub fn maximize(&mut self, hwnd: &HWND) {

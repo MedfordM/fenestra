@@ -11,7 +11,7 @@ pub struct MoveToWorkspace {
 
 impl Action for MoveToWorkspace {
     fn execute(&self, state_manager: &mut StateManager) {
-        state_manager.move_to_workspace(self.id)
+        state_manager.move_to_workspace(self.id - 1)
     }
 }
 

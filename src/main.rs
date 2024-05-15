@@ -1,7 +1,6 @@
 use crate::data::key::{Key, KeyEvent, KeyEventType};
 use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
-use log::debug;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{MSG, WM_APP, WM_NULL};
 
@@ -31,9 +30,11 @@ fn main() {
             }
             WINDOW_EVENT => {
                 let hwnd = HWND(message.lParam.0);
+                if state_manager.ignore_events {
+                    continue;
+                }
                 match message.wParam.0 {
                     0 => {
-                        debug!("Updated foreground window");
                         state_manager.add_window(hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
@@ -43,7 +44,6 @@ fn main() {
                         state_manager.arrange_windows(new_positions);
                     }
                     1 => {
-                        debug!("Minimized window");
                         state_manager.window_manager.minimize(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
@@ -53,7 +53,6 @@ fn main() {
                         state_manager.arrange_windows(new_positions);
                     }
                     2 => {
-                        debug!("Restored window");
                         state_manager.window_manager.restore(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
