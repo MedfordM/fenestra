@@ -3,12 +3,18 @@
 ## Windows
  - Focus window in direction ✅
  - Move window in direction ✅
+ - Kill window ❌
+ - Minimize window ❌
  - Dynamic window sizing ✅
+ - Respect manual window sizing ❌
+ - Un-manage window ❌
+ - Active window border ❌
+ - Window gaps ❌
 
 ## Workspaces
  - Multiple workspaces ✅
- - Focus workspace ❌
- - Send window to workspace ❌
+ - Focus workspace ✅
+ - Send window to workspace ✅
  - Workspaces per monitor ✅
 
 ## UX
