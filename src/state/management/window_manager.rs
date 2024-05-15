@@ -57,19 +57,6 @@ impl WindowManager {
         return true;
     }
 
-    pub fn remove_window(&mut self, hwnd: &HWND) -> bool {
-        if !self.managed_hwnds(false).contains(&hwnd) {
-            return false;
-        }
-        // self.windows
-        //     .iter()
-        //     .find(|window| window.hwnd == *hwnd)
-        //     .iter()
-        //     .for_each(|window| debug!("Removing window {}", window.title));
-        self.windows.retain(|w| w.hwnd != *hwnd);
-        return true;
-    }
-
     pub fn minimize(&mut self, hwnd: &HWND) -> bool {
         let window = self.get_window(&hwnd);
         window.style = win_api::window::get_style(&window.hwnd);
@@ -116,40 +103,6 @@ impl WindowManager {
 
     pub fn update_dpi(&mut self, hwnd: HWND) {
         self.get_window(&hwnd).dpi = 0;
-    }
-
-    pub fn set_dpi_from_hwnd(&mut self, hwnd_to_set: HWND, hwnd_to_set_from: HWND) {
-        let window_2_dpi = self
-            .windows
-            .iter()
-            .find(|window| window.hwnd == hwnd_to_set_from)
-            .map(|window| window.dpi)
-            .expect("Unable to find window");
-        {
-            let window_1 = self.get_window(&hwnd_to_set);
-            window_1.dpi = window_2_dpi;
-        }
-    }
-
-    pub fn swap_dpi(&mut self, hwnd_1: HWND, hwnd_2: HWND) {
-        let window_1_dpi = self
-            .windows
-            .iter()
-            .find(|window| window.hwnd == hwnd_1)
-            .map(|window| window.dpi)
-            .expect("Unable to find window");
-        let window_2_dpi = self
-            .windows
-            .iter()
-            .find(|window| window.hwnd == hwnd_2)
-            .map(|window| window.dpi)
-            .expect("Unable to find window");
-        {
-            let window_1 = self.get_window(&hwnd_1);
-            window_1.dpi = window_2_dpi;
-            let window_2 = self.get_window(&hwnd_2);
-            window_2.dpi = window_1_dpi;
-        }
     }
 
     pub fn set_positions(&mut self, positions: &Vec<(HWND, RECT)>) {
@@ -252,13 +205,6 @@ impl WindowManager {
     }
 
     pub fn validate_windows(&mut self) -> (Vec<HWND>, Vec<HWND>) {
-        // let mut titles: Vec<String> = self
-        //     .windows
-        //     .iter()
-        //     .map(|window| String::from(&window.title))
-        //     .collect();
-        // titles.sort();
-        // debug!("Beginning window validation on windows {:?}", titles);
         // Remove any old windows
         let mut removed_windows = Vec::new();
         for i in 0..self.windows.len() {

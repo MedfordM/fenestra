@@ -35,8 +35,6 @@ impl StateManager {
         monitors.iter_mut().for_each(|monitor| unsafe {
             let mon_left = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x;
             let mon_top = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.y;
-            // let mon_right = monitor.info.rcMonitor.right;
-            // let mut mon_bottom = monitor.info.rcMonitor.bottom;
             let mon_width = monitor.device_mode.dmPelsWidth;
             let mon_height = monitor.device_mode.dmPelsHeight;
             let mon_right = mon_left + mon_width as i32;
@@ -179,6 +177,7 @@ impl StateManager {
         if added.len() > 0 || removed.len() > 0 {
             warn!("Encountered unmanaged windows during validation, all windows should be added/removed via the event listener");
         }
+        self.group_manager.validate();
         // Ensure that every managed window has a group
         let num_windows = self.window_manager.managed_hwnds(false).len();
         let num_group_hwnds = self.group_manager.num_hwnds();
@@ -190,41 +189,80 @@ impl StateManager {
 }
 
 impl StateManager {
-    fn candidate_hwnds(&self) -> Vec<HWND> {
-        let hmonitors = self.monitor_manager.get_all();
-        let workspaces: Vec<usize> = hmonitors
-            .into_iter()
-            .flat_map(|hmonitor| self.monitor_manager.workspaces_for_monitor(hmonitor))
-            .cloned()
-            .collect();
-        let groups: Vec<usize> = workspaces
-            .into_iter()
-            .flat_map(|workspace| self.workspace_manager.groups_for_workspace(workspace))
-            .cloned()
-            .collect();
-        let mut candidate_hwnds = self.group_manager.hwnds_from_groups(&groups);
-        let manageable_hwnds = self.window_manager.managed_hwnds(true);
-        candidate_hwnds.retain(|hwnd| manageable_hwnds.contains(&hwnd));
-        return candidate_hwnds;
-    }
-
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        let candidate_hwnds = self.candidate_hwnds();
-        let nearest_hwnd =
-            self.window_manager
-                .find_nearest_in_direction(current_hwnd, direction, candidate_hwnds);
-        if nearest_hwnd.is_some() {
-            self.window_manager.focus(nearest_hwnd.unwrap())
+        // let candidate_hwnds = self.candidate_hwnds();
+        // let nearest_hwnd =
+        //     self.window_manager
+        //         .find_nearest_in_direction(current_hwnd, direction, candidate_hwnds);
+        // if nearest_hwnd.is_some() {
+        //     self.window_manager.focus(nearest_hwnd.unwrap())
+        // }
+        // Current group
+        let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
+            &current_hwnd,
+            &direction,
+            self.window_manager.managed_hwnds(true),
+        );
+        if nearest_hwnd_opt.is_some() {
+            self.window_manager.focus(nearest_hwnd_opt.unwrap());
+            return;
         }
+        // Adjacent workspace group
+        let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
+        let adjacent_group_opt = self
+            .workspace_manager
+            .group_in_direction(current_group, &direction);
+        if adjacent_group_opt.is_some() {
+            let adjacent_group = adjacent_group_opt.unwrap();
+            let hwnds = self.group_manager.hwnds_from_groups(&vec![adjacent_group]);
+            let hwnd = match direction {
+                LEFT | UP => hwnds[hwnds.len() - 1],
+                DOWN | RIGHT => hwnds[0],
+            };
+            self.window_manager.focus(hwnd);
+            return;
+        }
+        // Adjacent monitor group
+        let current_hmonitor = self.monitor_manager.get_current();
+        let nearest_hmonitor_opt = self
+            .monitor_manager
+            .neighbor_in_direction(&current_hmonitor, &direction);
+        if nearest_hmonitor_opt.is_some() {
+            debug!("Checking neighboring monitor");
+            let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
+            let workspaces = self
+                .monitor_manager
+                .workspaces_for_monitor(nearest_hmonitor);
+            let workspace = self.workspace_manager.active_workspace(workspaces);
+            let groups = self.workspace_manager.groups_for_workspace(workspace);
+            let target_group = match direction {
+                LEFT | UP => groups[groups.len() - 1],
+                DOWN | RIGHT => groups[0],
+            };
+            let hwnds = self.group_manager.hwnds_from_groups(&vec![target_group]);
+            let hwnd = match direction {
+                LEFT | UP => hwnds[hwnds.len() - 1],
+                DOWN | RIGHT => hwnds[0],
+            };
+            self.window_manager.focus(hwnd);
+            return;
+        }
+        error!(
+            "Unable to focus window {:?} from '{}'",
+            direction,
+            win_api::window::get_window_title(current_hwnd),
+        );
     }
 
     pub fn move_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
         // Current group
-        let nearest_hwnd_opt = self
-            .group_manager
-            .candidate_in_direction(&current_hwnd, &direction);
+        let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
+            &current_hwnd,
+            &direction,
+            self.window_manager.managed_hwnds(true),
+        );
         if nearest_hwnd_opt.is_some() {
             let updated_group = self
                 .group_manager
