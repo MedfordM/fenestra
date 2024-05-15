@@ -1,4 +1,5 @@
-use log::debug;
+use windows::Win32::Foundation::{LPARAM, WPARAM};
+use windows::Win32::UI::WindowsAndMessaging::{PostMessageA, EVENT_SYSTEM_MINIMIZEEND, WM_APP};
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -9,8 +10,6 @@ use windows::Win32::{
         },
     },
 };
-use windows::Win32::Foundation::{LPARAM, WPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{EVENT_SYSTEM_MINIMIZEEND, PostMessageA, WM_APP};
 
 use crate::data::hook::Hook;
 use crate::win_api;
@@ -54,7 +53,7 @@ pub unsafe extern "system" fn callback(
                 return;
             }
             let _ = PostMessageA(None, WM_APP + 3, WPARAM(1), LPARAM(hwnd.0));
-        },
+        }
         EVENT_SYSTEM_MINIMIZEEND => {
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
@@ -66,29 +65,28 @@ pub unsafe extern "system" fn callback(
             if hwnd.0 == 0 {
                 return;
             }
-            
+
             if object_id != OBJID_WINDOW.0 {
                 return;
             }
-            
+
             if child_id != CHILDID_SELF as i32 {
                 return;
             }
-            
+
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
-            // debug!("Foreground window was updated: {}", window.title);
             let _ = PostMessageA(None, WM_APP + 3, WPARAM(0), LPARAM(hwnd.0));
-        },
+        }
         EVENT_SYSTEM_MOVESIZEEND => {
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
             // STATE_MANAGER.borrow_mut().validate();
-        },
+        }
         _ => (),
     }
 }

@@ -191,13 +191,6 @@ impl StateManager {
 impl StateManager {
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
-        // let candidate_hwnds = self.candidate_hwnds();
-        // let nearest_hwnd =
-        //     self.window_manager
-        //         .find_nearest_in_direction(current_hwnd, direction, candidate_hwnds);
-        // if nearest_hwnd.is_some() {
-        //     self.window_manager.focus(nearest_hwnd.unwrap())
-        // }
         // Current group
         let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
             &current_hwnd,

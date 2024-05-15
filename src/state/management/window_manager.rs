@@ -1,4 +1,3 @@
-use crate::data::common::direction::{Direction, DirectionCandidate};
 use crate::data::window::Window;
 use crate::win_api;
 use log::{debug, warn};
@@ -37,9 +36,6 @@ impl WindowManager {
             return false;
         }
         let window = window_result.unwrap();
-        if window.style & WS_MINIMIZE.0 as i32 != 0 {
-            return false;
-        }
         if self.windows.iter().any(|w| w.hwnd == window.hwnd) {
             // Remove the outdated window state
             let old_len = self.windows.len();
@@ -53,8 +49,9 @@ impl WindowManager {
             }
         }
         // debug!("Adding window '{}'", window.title);
+        let window_style = window.style;
         self.windows.push(window);
-        return true;
+        return window_style & WS_MINIMIZE.0 as i32 == 0;
     }
 
     pub fn minimize(&mut self, hwnd: &HWND) -> bool {
@@ -157,53 +154,6 @@ impl WindowManager {
         );
     }
 
-    pub fn find_nearest_in_direction(
-        &mut self,
-        hwnd: HWND,
-        direction: Direction,
-        candidate_hwnds: Vec<HWND>,
-    ) -> Option<HWND> {
-        let all_window_titles: Vec<String> = self
-            .windows
-            .iter()
-            .map(|window| String::from(&window.title))
-            .collect();
-        debug!("Currently managed windows: {:?}", all_window_titles);
-        let window = self
-            .windows
-            .iter()
-            .find(|window| window.hwnd == hwnd)
-            .expect(
-                &(String::from("Attempt to get an unmanaged window - ")
-                    + &win_api::window::get_window_title(hwnd)),
-            );
-        let candidate_windows: Vec<&Window> = self
-            .windows
-            .iter()
-            .filter(|window| candidate_hwnds.contains(&window.hwnd))
-            .collect();
-        // let candidate_window_titles: Vec<String> = candidate_windows
-        //     .iter()
-        //     .map(|window| String::from(&window.title))
-        //     .collect();
-        // debug!(
-        //     "Finding closest window {} from {} with candidates {:?}",
-        //     direction, &window.title, candidate_window_titles
-        // );
-        let origin = DirectionCandidate::from(&*window);
-        let candidates = candidate_windows
-            .iter()
-            .map(|window| DirectionCandidate::from(*window))
-            .collect();
-        let nearest_result = direction.find_nearest(&origin, candidates);
-        if nearest_result.is_some() {
-            let nearest_window_hwnd = HWND(nearest_result.unwrap().id);
-            return Some(nearest_window_hwnd);
-        }
-        debug!("Unable to find nearest window");
-        return None;
-    }
-
     pub fn validate_windows(&mut self) -> (Vec<HWND>, Vec<HWND>) {
         // Remove any old windows
         let mut removed_windows = Vec::new();
@@ -225,13 +175,6 @@ impl WindowManager {
             }
             self.windows.push(window);
         }
-        // titles = self
-        //     .windows
-        //     .iter()
-        //     .map(|window| String::from(&window.title))
-        //     .collect();
-        // titles.sort();
-        // debug!("Completed window validation with windows {:?}", titles);
         return (removed_windows, added_windows);
     }
 
