@@ -48,7 +48,8 @@ impl StateManager {
                     windows_on_monitor.push(window);
                 }
             });
-            if mon_width > mon_height {
+            let is_landscape = mon_width > mon_height;
+            if is_landscape {
                 windows_on_monitor.sort_by(|window, other_window| {
                     window
                         .rect
@@ -64,7 +65,10 @@ impl StateManager {
             // Create default group and workspace
             groups.push(Group {
                 index: 0,
-                split_axis: Axis::HORIZONTAL,
+                split_axis: match is_landscape {
+                    true => Axis::VERTICAL,
+                    false => Axis::HORIZONTAL,
+                },
                 rect: RECT {
                     left: mon_left,
                     top: mon_top,
@@ -87,7 +91,10 @@ impl StateManager {
                 let adjusted_index = (monitor_index * 10) + i;
                 let group = Group {
                     index: adjusted_index,
-                    split_axis: Axis::VERTICAL,
+                    split_axis: match is_landscape {
+                        true => Axis::VERTICAL,
+                        false => Axis::HORIZONTAL,
+                    },
                     rect: RECT {
                         left: mon_left,
                         top: mon_top,
