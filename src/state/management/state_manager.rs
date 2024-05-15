@@ -31,7 +31,7 @@ impl StateManager {
         let mut workspaces: Vec<Workspace> = Vec::new();
         let mut groups: Vec<Group> = Vec::new();
         let windows = win_api::window::get_all();
-        let mut index = 0;
+        let mut monitor_index = 0;
         monitors.iter_mut().for_each(|monitor| unsafe {
             let mon_left = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.x;
             let mon_top = monitor.device_mode.Anonymous1.Anonymous2.dmPosition.y;
@@ -61,31 +61,51 @@ impl StateManager {
                     window.rect.top.partial_cmp(&other_window.rect.top).unwrap()
                 });
             }
-            let hwnds_on_monitor = windows_on_monitor
-                .into_iter()
-                .map(|window| window.hwnd)
-                .collect();
-
-            let default_group = Group {
-                index,
-                split_axis: Axis::VERTICAL,
+            // Create default group and workspace
+            groups.push(Group {
+                index: 0,
+                split_axis: Axis::HORIZONTAL,
                 rect: RECT {
                     left: mon_left,
                     top: mon_top,
                     right: mon_right,
                     bottom: mon_bottom,
                 },
-                windows: hwnds_on_monitor,
-            };
-            let default_workspace = Workspace {
-                index,
-                groups: vec![index],
+                windows: windows_on_monitor
+                    .into_iter()
+                    .map(|window| window.hwnd)
+                    .collect(),
+            });
+            workspaces.push(Workspace {
+                index: 0,
+                groups: vec![0],
                 active: true,
-            };
-            monitor.workspaces.push(index);
-            workspaces.push(default_workspace);
-            groups.push(default_group);
-            index += 1;
+            });
+            monitor.workspaces.push(0);
+            // Create empty groups and workspaces
+            for i in 1..10 {
+                let adjusted_index = (monitor_index * 10) + i;
+                let group = Group {
+                    index: adjusted_index,
+                    split_axis: Axis::VERTICAL,
+                    rect: RECT {
+                        left: mon_left,
+                        top: mon_top,
+                        right: mon_right,
+                        bottom: mon_bottom,
+                    },
+                    windows: vec![],
+                };
+                let workspace = Workspace {
+                    index: adjusted_index,
+                    groups: vec![adjusted_index],
+                    active: false,
+                };
+                monitor.workspaces.push(adjusted_index);
+                workspaces.push(workspace);
+                groups.push(group);
+            }
+            monitor_index += 1;
         });
         let monitor_manager = MonitorManager::new(monitors);
         let workspace_manager = WorkspaceManager::new(workspaces);
