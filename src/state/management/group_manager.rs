@@ -43,22 +43,7 @@ impl GroupManager {
             .filter(|h| managed_hwnds.contains(&h))
             .cloned()
             .collect::<Vec<HWND>>();
-        let index_in_group = hwnds.iter().position(|h| h.0 == hwnd.0).unwrap();
-        match direction {
-            Direction::LEFT | Direction::UP => {
-                if index_in_group == 0 {
-                    return None;
-                }
-                Some(hwnds[index_in_group - 1])
-            }
-            Direction::RIGHT | Direction::DOWN => {
-                let highest_index = hwnds.len() - 1;
-                if index_in_group == highest_index {
-                    return None;
-                }
-                Some(hwnds[index_in_group + 1])
-            }
-        }
+        direction.adjacent_item(*hwnd, hwnds)
     }
 
     pub fn group_for_hwnd(&self, hwnd: &HWND) -> usize {
@@ -135,10 +120,10 @@ impl GroupManager {
         }
     }
 
-    pub fn hwnds_from_groups(&self, group_ids: &Vec<usize>) -> Vec<HWND> {
+    pub fn hwnds_from_groups(&self, group_ids: Vec<usize>) -> Vec<HWND> {
         self.groups
             .iter()
-            .filter(|group| group_ids.contains(&&group.index))
+            .filter(|group| group_ids.contains(&group.index))
             .flat_map(|group| &group.windows)
             .cloned()
             .collect()
@@ -223,6 +208,18 @@ impl GroupManager {
         return self.calculate_window_positions(updated_groups, &all_hwnds);
     }
 
+    pub fn get_window_index_in_group(&self, group_index: usize, hwnd: &HWND) -> usize {
+        self.groups[group_index]
+            .windows
+            .iter()
+            .position(|h| h == hwnd)
+            .expect("Unable to fetch hwnd index within group")
+    }
+
+    pub fn group_is_axis(&self, group_index: usize, axis: &Axis) -> bool {
+        self.groups[group_index].split_axis == *axis
+    }
+
     fn get_group(&mut self, index: usize) -> &mut Group {
         self.groups
             .get_mut(index)
@@ -238,13 +235,5 @@ impl GroupManager {
 
     fn all_groups(&self) -> Vec<usize> {
         self.groups.iter().map(|group| group.index).collect()
-    }
-
-    pub fn get_window_index_in_group(&self, group_index: usize, hwnd: &HWND) -> usize {
-        self.groups[group_index]
-            .windows
-            .iter()
-            .position(|h| h == hwnd)
-            .expect("Unable to fetch hwnd index within group")
     }
 }

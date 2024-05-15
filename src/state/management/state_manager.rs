@@ -254,11 +254,8 @@ impl StateManager {
                 .group_in_direction(current_group, &direction);
             if adjacent_group_opt.is_some() {
                 let adjacent_group = adjacent_group_opt.unwrap();
-                let hwnds = self.group_manager.hwnds_from_groups(&vec![adjacent_group]);
-                let hwnd = match direction {
-                    LEFT | UP => hwnds[hwnds.len() - 1],
-                    DOWN | RIGHT => hwnds[0],
-                };
+                let hwnds = self.group_manager.hwnds_from_groups(vec![adjacent_group]);
+                let hwnd = direction.item_in_direction_extreme(hwnds);
                 self.window_manager.focus(hwnd);
                 return;
             }
@@ -277,15 +274,9 @@ impl StateManager {
                     .workspaces_for_monitor(nearest_hmonitor);
                 let workspace = self.workspace_manager.active_workspace(workspaces);
                 let groups = self.workspace_manager.groups_for_workspace(workspace);
-                let target_group = match direction {
-                    LEFT | UP => groups[groups.len() - 1],
-                    DOWN | RIGHT => groups[0],
-                };
-                let hwnds = self.group_manager.hwnds_from_groups(&vec![target_group]);
-                let hwnd = match direction {
-                    LEFT | UP => hwnds[hwnds.len() - 1],
-                    DOWN | RIGHT => hwnds[0],
-                };
+                let target_group = direction.item_in_direction_extreme(groups);
+                let hwnds = self.group_manager.hwnds_from_groups(vec![target_group]);
+                let hwnd = direction.item_in_direction_extreme(hwnds);
                 self.window_manager.focus(hwnd);
                 return;
             }
@@ -429,5 +420,12 @@ impl StateManager {
         let new_group = groups[0];
         self.group_manager.add_window(new_group, hwnd).as_slice();
         self.ignore_events = false;
+    }
+
+    pub fn setSplitAxis(&mut self, axis: Axis) {
+        let group = self.current_group();
+        if self.group_manager.group_is_axis(group, &axis) {
+            return;
+        }
     }
 }

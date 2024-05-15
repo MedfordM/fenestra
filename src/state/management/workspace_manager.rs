@@ -19,24 +19,8 @@ impl WorkspaceManager {
 
     pub fn group_in_direction(&self, group: usize, direction: &Direction) -> Option<usize> {
         let workspace_index = self.workspace_for_group(group);
-        let workspace = &self.workspaces[workspace_index];
-        let index_in_workspace = self.get_group_index_in_workspace(workspace_index, group);
-        let groups = &workspace.groups;
-        match direction {
-            Direction::LEFT | Direction::UP => {
-                if index_in_workspace == 0 {
-                    return None;
-                }
-                Some(groups[index_in_workspace - 1])
-            }
-            Direction::RIGHT | Direction::DOWN => {
-                let highest_index = groups.len() - 1;
-                if index_in_workspace == highest_index {
-                    return None;
-                }
-                Some(groups[index_in_workspace + 1])
-            }
-        }
+        let groups = self.groups_for_workspace(workspace_index);
+        direction.adjacent_item(group, groups)
     }
 
     pub fn active_workspace(&self, workspace_ids: &Vec<usize>) -> usize {
@@ -53,8 +37,8 @@ impl WorkspaceManager {
             .expect("Unable to fetch workspace for requested group")
     }
 
-    pub fn groups_for_workspace(&self, workspace_id: usize) -> &Vec<usize> {
-        &self.workspaces[workspace_id].groups
+    pub fn groups_for_workspace(&self, workspace_id: usize) -> Vec<usize> {
+        self.workspaces[workspace_id].groups.clone()
     }
 
     pub fn toggle_active(&mut self, workspace_id: usize) {

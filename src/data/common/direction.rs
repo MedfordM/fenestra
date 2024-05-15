@@ -1,4 +1,3 @@
-use log::debug;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
@@ -76,6 +75,35 @@ pub struct DirectionResult {
 }
 
 impl Direction {
+    pub fn item_in_direction_extreme<T: PartialEq + Copy>(&self, list: Vec<T>) -> T {
+        match self {
+            LEFT | UP => list[list.len() - 1],
+            RIGHT | DOWN => list[0],
+        }
+    }
+
+    pub fn adjacent_item<T: PartialEq + Copy>(&self, origin: T, list: Vec<T>) -> Option<T> {
+        if !list.contains(&origin) {
+            return None;
+        }
+        let index_in_list = list.iter().position(|c| *c == origin).unwrap();
+        match self {
+            LEFT | UP => {
+                if index_in_list == 0 {
+                    return None;
+                }
+                Some(list[index_in_list - 1])
+            }
+            RIGHT | DOWN => {
+                let highest_index = list.len() - 1;
+                if index_in_list == highest_index {
+                    return None;
+                }
+                Some(list[index_in_list + 1])
+            }
+        }
+    }
+
     pub fn find_nearest(
         &self,
         origin: &DirectionCandidate,

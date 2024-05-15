@@ -2,6 +2,7 @@ use crate::data::common::axis::Axis::{HORIZONTAL, VERTICAL};
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
+#[derive(Copy, Clone, PartialEq)]
 pub enum Axis {
     HORIZONTAL,
     VERTICAL,
