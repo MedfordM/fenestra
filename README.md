@@ -3,7 +3,7 @@
 ## Windows
  - Focus window in direction ✅
  - Move window in direction ✅
- - Kill window ❌
+ - Close window ❌
  - Minimize window ❌
  - Dynamic window sizing ✅
  - Respect manual window sizing ❌
