@@ -129,6 +129,14 @@ impl StateManager {
         }
     }
 
+    pub fn arrange_all_windows(&mut self) {
+        let managed_hwnds = self.window_manager.managed_hwnds(true);
+        let new_positions = self
+            .group_manager
+            .calculate_window_positions(vec![], &managed_hwnds);
+        self.arrange_windows(new_positions);
+    }
+
     pub fn hooks(&mut self) -> &mut Vec<Box<dyn Hook>> {
         &mut self.state.hooks
     }

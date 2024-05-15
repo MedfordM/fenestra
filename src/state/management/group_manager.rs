@@ -150,6 +150,9 @@ impl GroupManager {
         manageable_hwnds: &Vec<HWND>,
     ) -> Vec<(HWND, RECT)> {
         Vec::dedup(&mut group_ids);
+        if group_ids.len() == 0 {
+            group_ids = self.all_groups();
+        }
         let mut window_positions = Vec::new();
         // let num_groups = group_ids.len();
         // debug!("Calculating window positions for {} groups", num_groups);
@@ -231,6 +234,10 @@ impl GroupManager {
             .iter()
             .position(|group| group.windows.contains(&hwnd))
             .expect("Unable to fetch group for the requested hwnd")
+    }
+
+    fn all_groups(&self) -> Vec<usize> {
+        self.groups.iter().map(|group| group.index).collect()
     }
 
     pub fn get_window_index_in_group(&self, group_index: usize, hwnd: &HWND) -> usize {

@@ -14,6 +14,7 @@ mod win_api;
 fn main() {
     env_logger::init();
     let mut state_manager = StateManager::new();
+    state_manager.arrange_all_windows();
     let mut key_manager = KeyManager::new();
     let mut message = MSG::default();
     let _ = win_api::window::get_message(&mut message);
