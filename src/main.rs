@@ -38,19 +38,33 @@ fn main() {
                     MINIMIZE => {
                         state_manager.window_manager.minimize(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
+                        let workspace = state_manager.workspace_manager.workspace_for_group(group);
+                        let num_workspace_groups = state_manager
+                            .workspace_manager
+                            .groups_for_workspace(workspace)
+                            .len();
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
-                        let new_positions = state_manager
-                            .group_manager
-                            .calculate_window_positions(vec![group], &manageable_windows);
+                        let new_positions = state_manager.group_manager.calculate_window_positions(
+                            vec![group],
+                            num_workspace_groups,
+                            &manageable_windows,
+                        );
                         state_manager.arrange_windows(new_positions);
                     }
                     RESTORE => {
                         state_manager.window_manager.restore(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
+                        let workspace = state_manager.workspace_manager.workspace_for_group(group);
+                        let num_workspace_groups = state_manager
+                            .workspace_manager
+                            .groups_for_workspace(workspace)
+                            .len();
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
-                        let new_positions = state_manager
-                            .group_manager
-                            .calculate_window_positions(vec![group], &manageable_windows);
+                        let new_positions = state_manager.group_manager.calculate_window_positions(
+                            vec![group],
+                            num_workspace_groups,
+                            &manageable_windows,
+                        );
                         state_manager.arrange_windows(new_positions);
                     }
                     _ => {}
