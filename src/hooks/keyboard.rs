@@ -1,16 +1,18 @@
-use windows::Win32::UI::WindowsAndMessaging::{PostMessageA, WM_APP, HC_ACTION, WM_KEYUP};
+use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+use windows::Win32::UI::WindowsAndMessaging::{HC_ACTION, WM_KEYUP};
 use windows::Win32::{
     Foundation::{LPARAM, LRESULT, WPARAM},
     UI::WindowsAndMessaging::{HHOOK, KBDLLHOOKSTRUCT, WH_KEYBOARD_LL},
 };
-use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
 
+use crate::data::common::event::Event;
 use crate::data::hook::Hook;
+use crate::data::key::WINDOWS_KEY_CODE;
+use crate::win_api::window::send_event_message;
 use crate::{
     win_api,
     win_api::hook::{call_next_hook, set_window_hook},
 };
-use crate::data::key::WINDOWS_KEY_CODE;
 
 pub struct KeyboardHook {
     hook: HHOOK,
@@ -33,9 +35,9 @@ pub unsafe extern "system" fn callback(code: i32, w_param: WPARAM, l_param: LPAR
     let hook_struct: *mut KBDLLHOOKSTRUCT = l_param.0 as *mut KBDLLHOOKSTRUCT;
     let keyboard_hook_struct = hook_struct.as_ref().unwrap();
     let key_code = keyboard_hook_struct.vkCode;
-    let _ = PostMessageA(None, WM_APP + 2, w_param, LPARAM(key_code as isize));
+    send_event_message(Event::key_event(key_code as isize, w_param));
     // Suppress the Windows key
-    let win_pressed= (GetAsyncKeyState(WINDOWS_KEY_CODE) & (1 << 15)) == (1 << 15);
+    let win_pressed = (GetAsyncKeyState(WINDOWS_KEY_CODE) & (1 << 15)) == (1 << 15);
     if win_pressed {
         if key_code != WINDOWS_KEY_CODE as u32 && w_param.0 != WM_KEYUP as usize {
             return LRESULT(1);

@@ -1,8 +1,9 @@
+use crate::data::common::event::{FOCUS, KEY_EVENT, MINIMIZE, RESTORE, WINDOW_EVENT};
 use crate::data::key::{Key, KeyEvent, KeyEventType};
 use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
 use windows::Win32::Foundation::HWND;
-use windows::Win32::UI::WindowsAndMessaging::{MSG, WM_APP, WM_NULL};
+use windows::Win32::UI::WindowsAndMessaging::{MSG, WM_NULL};
 
 mod actions;
 mod config;
@@ -17,11 +18,9 @@ fn main() {
     state_manager.arrange_all_windows();
     let mut key_manager = KeyManager::new();
     let mut message = MSG::default();
-    let _ = win_api::window::get_message(&mut message);
-    const KEY_EVENT: u32 = WM_APP + 2;
-    const WINDOW_EVENT: u32 = WM_APP + 3;
+    win_api::window::get_message(&mut message);
     while message.message != WM_NULL {
-        let _ = win_api::window::get_message(&mut message);
+        win_api::window::get_message(&mut message);
         match message.message {
             KEY_EVENT => {
                 let key = Key::from(message.lParam.0 as i32);
@@ -35,10 +34,8 @@ fn main() {
                     continue;
                 }
                 match message.wParam.0 {
-                    0 => {
-                        state_manager.add_window(hwnd);
-                    }
-                    1 => {
+                    FOCUS => state_manager.add_window(hwnd),
+                    MINIMIZE => {
                         state_manager.window_manager.minimize(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
@@ -47,7 +44,7 @@ fn main() {
                             .calculate_window_positions(vec![group], &manageable_windows);
                         state_manager.arrange_windows(new_positions);
                     }
-                    2 => {
+                    RESTORE => {
                         state_manager.window_manager.restore(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);

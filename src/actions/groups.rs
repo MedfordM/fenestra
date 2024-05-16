@@ -11,7 +11,7 @@ pub struct SetSplitAxis {
 
 impl Action for SetSplitAxis {
     fn execute(&self, state_manager: &mut StateManager) {
-        state_manager.setSplitAxis(self.axis);
+        state_manager.set_split_axis(self.axis);
     }
 }
 

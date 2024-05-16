@@ -422,7 +422,7 @@ impl StateManager {
         self.ignore_events = false;
     }
 
-    pub fn setSplitAxis(&mut self, axis: Axis) {
+    pub fn set_split_axis(&mut self, axis: Axis) {
         let group = self.current_group();
         if self.group_manager.group_is_axis(group, &axis) {
             return;

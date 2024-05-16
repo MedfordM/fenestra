@@ -8,9 +8,3 @@ pub struct Group {
     pub rect: RECT,
     pub windows: Vec<HWND>,
 }
-
-impl Group {
-    pub fn new(index: usize, split_axis: Axis, rect: RECT, windows: Vec<HWND>) -> Self {
-        Self { index, split_axis, rect, windows }
-    }
-}

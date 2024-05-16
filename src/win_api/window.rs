@@ -1,5 +1,6 @@
 use std::ffi::CString;
 
+use crate::data::common::event::Event;
 use log::{debug, error};
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
@@ -12,8 +13,7 @@ use windows::Win32::Graphics::Dwm::{
 use windows::Win32::Graphics::Gdi::ValidateRect;
 use windows::Win32::System::StationsAndDesktops::EnumDesktopWindows;
 use windows::Win32::UI::HiDpi::{
-    AdjustWindowRectExForDpi, GetDpiForWindow, SetProcessDpiAwarenessContext,
-    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+    GetDpiForWindow, SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
 use windows::Win32::UI::Shell::{
     Shell_NotifyIconA, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NOTIFYICONDATAA,
@@ -201,20 +201,12 @@ pub fn get_style(handle: &HWND) -> i32 {
     return get_window_info(*handle, GWL_STYLE);
 }
 
-pub(crate) fn get_message(message: *mut MSG) -> BOOL {
-    return unsafe { GetMessageA(message, None, 0, 0) };
+pub fn get_message(message: *mut MSG) {
+    let _ = unsafe { GetMessageA(message, None, 0, 0) };
 }
 
 pub fn get_dpi(hwnd: HWND) -> u32 {
     return unsafe { GetDpiForWindow(hwnd) };
-}
-
-pub fn adjust_for_dpi(rect: &RECT, style: WINDOW_STYLE, dpi: u32) -> RECT {
-    let mut adjusted_rect = rect.clone();
-    handle_result(unsafe {
-        AdjustWindowRectExForDpi(&mut adjusted_rect, style, false, WINDOW_EX_STYLE(0), dpi)
-    });
-    return adjusted_rect;
 }
 
 static mut WINDOWS: Vec<Window> = Vec::new();
@@ -342,6 +334,10 @@ pub fn maximize(hwnd: &HWND) -> bool {
 
 pub fn restore(hwnd: &HWND) -> bool {
     unsafe { ShowWindow(hwnd.clone(), SW_RESTORE) }.as_bool()
+}
+
+pub fn send_event_message(event: Event) {
+    handle_result(unsafe { PostMessageA(None, event.message, event.wparam, event.lparam) });
 }
 
 pub fn get_window_coords(hwnd: HWND) -> WINDOWINFO {

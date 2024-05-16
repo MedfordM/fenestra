@@ -10,13 +10,6 @@ impl WorkspaceManager {
         Self { workspaces }
     }
 
-    pub fn all(&self) -> Vec<usize> {
-        self.workspaces
-            .iter()
-            .map(|workspace| workspace.index)
-            .collect()
-    }
-
     pub fn group_in_direction(&self, group: usize, direction: &Direction) -> Option<usize> {
         let workspace_index = self.workspace_for_group(group);
         let groups = self.groups_for_workspace(workspace_index);
@@ -50,13 +43,5 @@ impl WorkspaceManager {
         self.workspaces
             .get_mut(workspace_id)
             .expect("Unable to fetch workspace for requested index")
-    }
-
-    fn get_group_index_in_workspace(&self, workspace_index: usize, group: usize) -> usize {
-        self.workspaces[workspace_index]
-            .groups
-            .iter()
-            .position(|g| g == &group)
-            .expect("Unable to fetch groups index within workspace")
     }
 }

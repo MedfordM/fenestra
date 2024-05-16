@@ -1,5 +1,5 @@
-use windows::Win32::Foundation::{LPARAM, WPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{PostMessageA, EVENT_SYSTEM_MINIMIZEEND, WM_APP};
+use crate::data::common::event::Event;
+use windows::Win32::UI::WindowsAndMessaging::EVENT_SYSTEM_MINIMIZEEND;
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -13,6 +13,7 @@ use windows::Win32::{
 
 use crate::data::hook::Hook;
 use crate::win_api;
+use crate::win_api::window::send_event_message;
 
 pub struct EventHook {
     hook: HWINEVENTHOOK,
@@ -47,45 +48,18 @@ pub unsafe extern "system" fn callback(
     _: u32,
 ) {
     match event {
-        EVENT_SYSTEM_MINIMIZESTART => {
-            let window_result = win_api::window::get_window(hwnd);
-            if window_result.is_none() {
-                return;
-            }
-            let _ = PostMessageA(None, WM_APP + 3, WPARAM(1), LPARAM(hwnd.0));
-        }
-        EVENT_SYSTEM_MINIMIZEEND => {
-            let window_result = win_api::window::get_window(hwnd);
-            if window_result.is_none() {
-                return;
-            }
-            let _ = PostMessageA(None, WM_APP + 3, WPARAM(2), LPARAM(hwnd.0));
-        }
+        EVENT_SYSTEM_MINIMIZESTART => send_event_message(Event::minimize(hwnd)),
+        EVENT_SYSTEM_MINIMIZEEND => send_event_message(Event::restore(hwnd)),
+        EVENT_SYSTEM_MOVESIZEEND => send_event_message(Event::move_size(hwnd)),
         EVENT_SYSTEM_FOREGROUND => {
-            if hwnd.0 == 0 {
+            if hwnd.0 == 0 || object_id == OBJID_WINDOW.0 || child_id != CHILDID_SELF as i32 {
                 return;
             }
-
-            if object_id != OBJID_WINDOW.0 {
-                return;
-            }
-
-            if child_id != CHILDID_SELF as i32 {
-                return;
-            }
-
             let window_result = win_api::window::get_window(hwnd);
             if window_result.is_none() {
                 return;
             }
-            let _ = PostMessageA(None, WM_APP + 3, WPARAM(0), LPARAM(hwnd.0));
-        }
-        EVENT_SYSTEM_MOVESIZEEND => {
-            let window_result = win_api::window::get_window(hwnd);
-            if window_result.is_none() {
-                return;
-            }
-            // STATE_MANAGER.borrow_mut().validate();
+            send_event_message(Event::focus(hwnd));
         }
         _ => (),
     }
