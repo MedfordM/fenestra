@@ -22,14 +22,13 @@ use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreatePopupMenu, CreateWindowExA, DefWindowProcA, DestroyMenu, GetCursorPos,
     GetForegroundWindow, GetMessageA, GetWindowInfo, GetWindowLongA, GetWindowPlacement,
     GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, InsertMenuA, LoadCursorW, LoadIconW,
-    PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos,
-    ShowWindow, TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR,
-    IDC_ARROW, IDI_APPLICATION, MF_STRING, MSG, SWP_FRAMECHANGED, SWP_NOACTIVATE,
-    SWP_NOCOPYBITS, SWP_NOSENDCHANGING, SW_MAXIMIZE, SW_RESTORE,
-    SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO,
-    WINDOWPLACEMENT, WINDOW_EX_STYLE, WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND,
-    WM_DESTROY, WM_PAINT, WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW,
-    WS_SIZEBOX, WS_VISIBLE,
+    PostMessageA, PostQuitMessage, RegisterClassA, SetForegroundWindow, SetWindowPos, ShowWindow,
+    TrackPopupMenu, CS_HREDRAW, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HCURSOR, IDC_ARROW,
+    IDI_APPLICATION, MF_STRING, MSG, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
+    SWP_NOSENDCHANGING, SW_MAXIMIZE, SW_RESTORE, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN,
+    TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
+    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_PAINT, WM_RBUTTONUP,
+    WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -202,8 +201,20 @@ pub fn get_style(handle: &HWND) -> i32 {
     return get_window_info(*handle, GWL_STYLE);
 }
 
-fn get_extended_style(handle: HWND) -> i32 {
-    return get_window_info(handle, GWL_EXSTYLE);
+pub(crate) fn get_message(message: *mut MSG) -> BOOL {
+    return unsafe { GetMessageA(message, None, 0, 0) };
+}
+
+pub fn get_dpi(hwnd: HWND) -> u32 {
+    return unsafe { GetDpiForWindow(hwnd) };
+}
+
+pub fn adjust_for_dpi(rect: &RECT, style: WINDOW_STYLE, dpi: u32) -> RECT {
+    let mut adjusted_rect = rect.clone();
+    handle_result(unsafe {
+        AdjustWindowRectExForDpi(&mut adjusted_rect, style, false, WINDOW_EX_STYLE(0), dpi)
+    });
+    return adjusted_rect;
 }
 
 static mut WINDOWS: Vec<Window> = Vec::new();
@@ -319,19 +330,6 @@ pub fn set_position(hwnd: &HWND, position: RECT, dpi_change: bool) {
             )
         });
     }
-    // handle_result(unsafe {
-    //     SetWindowPos(
-    //         hwnd.clone(),
-    //         None,
-    //         position.left,
-    //         // dpi_adjusted_window.rect.top,
-    //         position.top,
-    //         position.right,
-    //         position.bottom,
-    //         // SWP_NOACTIVATE | SWP_NOSENDCHANGING | SWP_NOCOPYBITS | SWP_DRAWFRAME,
-    //         SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_SHOWWINDOW | SWP_DRAWFRAME | SWP_FRAMECHANGED,
-    //     )
-    // });
 }
 
 pub fn minimize(hwnd: &HWND) -> bool {
@@ -344,6 +342,26 @@ pub fn maximize(hwnd: &HWND) -> bool {
 
 pub fn restore(hwnd: &HWND) -> bool {
     unsafe { ShowWindow(hwnd.clone(), SW_RESTORE) }.as_bool()
+}
+
+pub fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
+    let mut window_info: WINDOWINFO = WINDOWINFO::default();
+    handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
+    return window_info;
+}
+
+pub fn get_window_title(handle: HWND) -> String {
+    let mut buffer = vec![0; 32];
+    let result = unsafe { GetWindowTextA(handle, &mut buffer) };
+    if result == 0 {
+        return String::new();
+    }
+    unsafe { buffer.set_len(result as usize) }
+    return CString::new(buffer).unwrap().to_string_lossy().to_string();
+}
+
+fn get_extended_style(handle: HWND) -> i32 {
+    return get_window_info(handle, GWL_EXSTYLE);
 }
 
 fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
@@ -363,28 +381,12 @@ fn get_ext_attr<T>(hwnd: HWND, attr: DWMWINDOWATTRIBUTE, value: &mut T) {
     });
 }
 
-pub fn get_window_coords(hwnd: HWND) -> WINDOWINFO {
-    let mut window_info: WINDOWINFO = WINDOWINFO::default();
-    handle_result(unsafe { GetWindowInfo(hwnd, &mut window_info) });
-    return window_info;
-}
-
 fn get_rect(hwnd: HWND) -> (RECT, RECT) {
     let mut rect = RECT::default();
     let mut shadow_rect = RECT::default();
     handle_result(unsafe { GetWindowRect(hwnd, &mut rect) });
     get_ext_attr(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut shadow_rect);
     return (rect, shadow_rect);
-}
-
-pub fn get_window_title(handle: HWND) -> String {
-    let mut buffer = vec![0; 32];
-    let result = unsafe { GetWindowTextA(handle, &mut buffer) };
-    if result == 0 {
-        return String::new();
-    }
-    unsafe { buffer.set_len(result as usize) }
-    return CString::new(buffer).unwrap().to_string_lossy().to_string();
 }
 
 fn get_window_thread_id(handle: HWND) -> (u32, u32) {
@@ -400,23 +402,7 @@ fn load_cursor() -> HCURSOR {
     return handle_result(unsafe { LoadCursorW(None, IDC_ARROW) });
 }
 
-pub(crate) fn get_message(message: *mut MSG) -> BOOL {
-    return unsafe { GetMessageA(message, None, 0, 0) };
-}
-
 fn get_window_info(handle: HWND, offset: WINDOW_LONG_PTR_INDEX) -> i32 {
     let info = unsafe { GetWindowLongA(handle, offset) };
     return info;
-}
-
-pub fn get_dpi(hwnd: HWND) -> u32 {
-    return unsafe { GetDpiForWindow(hwnd) };
-}
-
-pub fn adjust_for_dpi(rect: &RECT, style: WINDOW_STYLE, dpi: u32) -> RECT {
-    let mut adjusted_rect = rect.clone();
-    handle_result(unsafe {
-        AdjustWindowRectExForDpi(&mut adjusted_rect, style, false, WINDOW_EX_STYLE(0), dpi)
-    });
-    return adjusted_rect;
 }
