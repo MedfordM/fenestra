@@ -61,8 +61,8 @@ impl WindowManager {
 
     pub fn minimize(&mut self, hwnd: &HWND) {
         let window = self.get_window(&hwnd);
-        window.style = win_api::window::get_style(&window.hwnd);
         let result = win_api::window::minimize(&window.hwnd);
+        window.style = win_api::window::get_style(&window.hwnd);
         if result {
             debug!("Minimized '{}'", &window.title);
         } else {
@@ -73,6 +73,7 @@ impl WindowManager {
     pub fn maximize(&mut self, hwnd: &HWND) {
         let window = self.get_window(&hwnd);
         let result = win_api::window::maximize(&window.hwnd);
+        window.style = win_api::window::get_style(&window.hwnd);
         if result {
             debug!("Maximized '{}'", &window.title);
         } else {
@@ -82,8 +83,8 @@ impl WindowManager {
 
     pub fn restore(&mut self, hwnd: &HWND) {
         let window = self.get_window(&hwnd);
-        window.style = win_api::window::get_style(&window.hwnd);
         let result = win_api::window::restore(&window.hwnd);
+        window.style = win_api::window::get_style(&window.hwnd);
         if result {
             debug!("Restore '{}'", &window.title);
         } else {
