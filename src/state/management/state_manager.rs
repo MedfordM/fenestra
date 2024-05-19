@@ -416,9 +416,11 @@ impl StateManager {
         self.window_manager.minimize(&hwnd);
         let new_positions = self.group_manager.remove_window(&hwnd);
         self.arrange_windows(new_positions);
-        let groups = self.workspace_manager.groups_for_workspace(workspace_index);
+        let groups = self
+            .workspace_manager
+            .groups_for_workspace(target_workspace);
         let new_group = groups[0];
-        self.group_manager.add_window(new_group, hwnd).as_slice();
+        self.group_manager.add_window(new_group, hwnd);
         self.ignore_events = false;
     }
 
