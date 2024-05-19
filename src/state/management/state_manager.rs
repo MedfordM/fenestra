@@ -1,5 +1,6 @@
 use crate::data::common::axis::Axis;
 use crate::data::common::direction::Direction;
+use crate::data::common::direction::Direction::{DOWN, LEFT, RIGHT, UP};
 use crate::data::common::state::AppState;
 use crate::data::group::Group;
 use crate::data::hook::Hook;
@@ -130,17 +131,9 @@ impl StateManager {
 
     pub fn arrange_all_windows(&mut self) {
         let managed_hwnds = self.window_manager.managed_hwnds(true);
-        let mut new_positions = Vec::new();
-        for hmonitor in self.monitor_manager.all() {
-            let workspaces = self.monitor_manager.workspaces_for_monitor(hmonitor);
-            let workspace = self.workspace_manager.active_workspace(workspaces);
-            let workspace_groups = self.workspace_manager.groups_for_workspace(workspace);
-            new_positions.extend_from_slice(
-                self.group_manager
-                    .calculate_window_positions(vec![], workspace_groups.len(), &managed_hwnds)
-                    .as_slice(),
-            );
-        }
+        let new_positions = self
+            .group_manager
+            .calculate_window_positions(vec![], &managed_hwnds);
         self.arrange_windows(new_positions);
     }
 
@@ -199,12 +192,7 @@ impl StateManager {
         if !added_window {
             return;
         }
-        let group = self.group_manager.group_for_hwnd(&hwnd);
-        let workspace = self.workspace_manager.workspace_for_group(group);
-        let workspace_groups = self.workspace_manager.groups_for_workspace(workspace);
-        let new_positions =
-            self.group_manager
-                .add_window(self.current_group(), workspace_groups.len(), hwnd);
+        let new_positions = self.group_manager.add_window(self.current_group(), hwnd);
         self.arrange_windows(new_positions);
     }
 
@@ -218,22 +206,11 @@ impl StateManager {
         }
         let (removed, added) = self.window_manager.validate_windows();
         removed.iter().for_each(|hwnd| {
-            let group = self.group_manager.group_for_hwnd(hwnd);
-            let workspace = self.workspace_manager.workspace_for_group(group);
-            self.group_manager.remove_window(
-                self.workspace_manager.groups_for_workspace(workspace).len(),
-                &hwnd,
-            );
+            self.group_manager.remove_window(&hwnd);
         });
         let current_group = self.current_group();
         added.iter().for_each(|hwnd| {
-            let group = self.group_manager.group_for_hwnd(hwnd);
-            let workspace = self.workspace_manager.workspace_for_group(group);
-            self.group_manager.add_window(
-                current_group,
-                self.workspace_manager.groups_for_workspace(workspace).len(),
-                *hwnd,
-            );
+            self.group_manager.add_window(current_group, *hwnd);
         });
         if added.len() > 0 || removed.len() > 0 {
             warn!("Encountered unmanaged windows during validation, all windows should be added/removed via the event listener");
@@ -313,12 +290,7 @@ impl StateManager {
     }
 
     pub fn move_window_in_direction(&mut self, direction: Direction) {
-        let current_hwnd = self.window_manager.current_window();
-        let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
-        let current_workspace = self.workspace_manager.workspace_for_group(current_group);
-        let current_workspace_groups = self
-            .workspace_manager
-            .groups_for_workspace(current_workspace);
+        let current_hwnd = win_api::window::foreground_hwnd();
         // Current group
         let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
             &current_hwnd,
@@ -326,34 +298,27 @@ impl StateManager {
             self.window_manager.managed_hwnds(true),
         );
         if nearest_hwnd_opt.is_some() {
-            let updated_groups = self
+            let updated_group = self
                 .group_manager
                 .swap_windows(current_hwnd, nearest_hwnd_opt.unwrap());
             let manageable_windows = self.window_manager.managed_hwnds(true);
-            self.arrange_windows(self.group_manager.calculate_window_positions(
-                updated_groups,
-                current_workspace_groups.len(),
-                &manageable_windows,
-            ));
+            self.arrange_windows(
+                self.group_manager
+                    .calculate_window_positions(updated_group, &manageable_windows),
+            );
             return;
         }
         // Adjacent workspace group
+        let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
         let adjacent_group_opt = self
             .workspace_manager
             .group_in_direction(current_group, &direction);
         if adjacent_group_opt.is_some() {
             let adjacent_group = adjacent_group_opt.unwrap();
-            let mut new_positions = self
-                .group_manager
-                .remove_window(current_workspace_groups.len(), &current_hwnd);
+            let mut new_positions = self.group_manager.remove_window(&current_hwnd);
             new_positions.extend_from_slice(
                 self.group_manager
-                    .add_window_direction(
-                        adjacent_group,
-                        current_workspace_groups.len(),
-                        &current_hwnd,
-                        &direction,
-                    )
+                    .add_window_direction(adjacent_group, &current_hwnd, &direction)
                     .as_slice(),
             );
             self.arrange_windows(new_positions);
@@ -366,27 +331,20 @@ impl StateManager {
             .neighbor_in_direction(&current_hmonitor, &direction);
         if nearest_hmonitor_opt.is_some() {
             debug!("Checking neighboring monitor");
-            let mut new_positions = self
-                .group_manager
-                .remove_window(current_workspace_groups.len(), &current_hwnd);
+            let mut new_positions = self.group_manager.remove_window(&current_hwnd);
             let nearest_hmonitor = nearest_hmonitor_opt.unwrap();
-            let hmonitor_workspaces = self
+            let workspaces = self
                 .monitor_manager
                 .workspaces_for_monitor(nearest_hmonitor);
-            let target_workspace = self.workspace_manager.active_workspace(hmonitor_workspaces);
-            let target_workspace_groups = self
-                .workspace_manager
-                .groups_for_workspace(target_workspace);
-            let num_target_workspace_groups = target_workspace_groups.len();
-            let target_group = direction.item_in_direction_extreme(target_workspace_groups);
+            let workspace = self.workspace_manager.active_workspace(workspaces);
+            let groups = self.workspace_manager.groups_for_workspace(workspace);
+            let target_group = match direction {
+                LEFT | UP => groups[groups.len() - 1],
+                DOWN | RIGHT => groups[0],
+            };
             new_positions.extend_from_slice(
                 self.group_manager
-                    .add_window_direction(
-                        target_group,
-                        num_target_workspace_groups,
-                        &current_hwnd,
-                        &direction,
-                    )
+                    .add_window_direction(target_group, &current_hwnd, &direction)
                     .as_slice(),
             );
             self.window_manager.update_dpi(current_hwnd);
@@ -440,15 +398,7 @@ impl StateManager {
         let workspaces = self
             .monitor_manager
             .workspaces_for_monitor(current_hmonitor);
-        let current_workspace = self.workspace_manager.active_workspace(workspaces);
-        let current_workspace_groups = self
-            .workspace_manager
-            .groups_for_workspace(current_workspace)
-            .len();
         let target_workspace = workspaces[workspace_index];
-        let target_workspace_groups = self
-            .workspace_manager
-            .groups_for_workspace(target_workspace);
         if self.current_workspace() == target_workspace {
             debug!(
                 "Ignoring request to send monitor to current workspace {}",
@@ -464,23 +414,18 @@ impl StateManager {
         );
         self.ignore_events = true;
         self.window_manager.minimize(&hwnd);
-        let new_positions = self
-            .group_manager
-            .remove_window(current_workspace_groups, &hwnd);
+        let new_positions = self.group_manager.remove_window(&hwnd);
         self.arrange_windows(new_positions);
-        let new_group = target_workspace_groups[0];
-        self.group_manager
-            .add_window(target_workspace_groups.len(), new_group, hwnd)
-            .as_slice();
+        let groups = self.workspace_manager.groups_for_workspace(workspace_index);
+        let new_group = groups[0];
+        self.group_manager.add_window(new_group, hwnd).as_slice();
         self.ignore_events = false;
     }
 
     pub fn set_split_axis(&mut self, axis: Axis) {
         let group = self.current_group();
         if self.group_manager.group_is_axis(group, &axis) {
-            debug!("Ignoring redundant request to set group split-axis");
             return;
         }
-        // let new_group = self.group_manager.add_group(axis, )
     }
 }

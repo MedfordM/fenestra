@@ -12,18 +12,6 @@ impl GroupManager {
         Self { groups }
     }
 
-    pub fn add_group(&mut self, split_axis: Axis, rect: RECT) -> usize {
-        let index = self.groups.len();
-        let group = Group {
-            index,
-            split_axis,
-            rect,
-            windows: vec![],
-        };
-        self.groups.push(group);
-        return index;
-    }
-
     pub fn managed_hwnds(&self) -> Vec<&HWND> {
         self.groups
             .iter()
@@ -68,7 +56,6 @@ impl GroupManager {
     pub fn add_window_direction(
         &mut self,
         group_index: usize,
-        num_workspace_groups: usize,
         hwnd: &HWND,
         direction: &Direction,
     ) -> Vec<(HWND, RECT)> {
@@ -84,40 +71,26 @@ impl GroupManager {
                 self.groups[group_index].windows.insert(0, *hwnd);
             }
         }
-        return self.calculate_window_positions(
-            vec![group_index],
-            num_workspace_groups,
-            &self.groups[group_index].windows,
-        );
+        return self
+            .calculate_window_positions(vec![group_index], &self.groups[group_index].windows);
     }
 
-    pub fn add_window(
-        &mut self,
-        group_index: usize,
-        num_workspace_groups: usize,
-        hwnd: HWND,
-    ) -> Vec<(HWND, RECT)> {
+    pub fn add_window(&mut self, group_index: usize, hwnd: HWND) -> Vec<(HWND, RECT)> {
         let group = &self.groups[group_index];
         if group.windows.contains(&hwnd) {
             return Vec::new();
         }
         self.groups[group_index].windows.push(hwnd);
-        return self.calculate_window_positions(
-            vec![group_index],
-            num_workspace_groups,
-            &self.groups[group_index].windows,
-        );
+        return self
+            .calculate_window_positions(vec![group_index], &self.groups[group_index].windows);
     }
 
-    pub fn remove_window(&mut self, num_workspace_groups: usize, hwnd: &HWND) -> Vec<(HWND, RECT)> {
+    pub fn remove_window(&mut self, hwnd: &HWND) -> Vec<(HWND, RECT)> {
         let group_index = self.get_group_index_by_hwnd(*hwnd);
         let group = self.get_group(group_index);
         group.windows.retain(|h| h.0 != hwnd.0);
-        return self.calculate_window_positions(
-            vec![group_index],
-            num_workspace_groups,
-            &self.groups[group_index].windows,
-        );
+        return self
+            .calculate_window_positions(vec![group_index], &self.groups[group_index].windows);
     }
 
     pub fn swap_windows(&mut self, hwnd_1: HWND, hwnd_2: HWND) -> Vec<usize> {
@@ -129,8 +102,17 @@ impl GroupManager {
         let window_set_2 = &mut self.groups[group_index_2].windows.clone();
         let window_1 = window_set_1[window_index_1];
         let window_2 = window_set_2[window_index_2];
+        // debug!(
+        //     "Swapping {:?} and {:?} in groups {:?} and {:?}",
+        //     window_1, window_2, window_set_1, window_set_2
+        // );
         self.groups[group_index_1].windows[window_index_1] = window_2;
         self.groups[group_index_2].windows[window_index_2] = window_1;
+        // debug!(
+        //     "After swap: {:?} {:?}",
+        //     self.groups[group_index_1].windows, self.groups[group_index_2].windows
+        // );
+        // win_api::window::inherit_monitor(window_2, window_1);
         if group_index_2 == group_index_1 {
             vec![group_index_1]
         } else {
@@ -150,7 +132,6 @@ impl GroupManager {
     pub fn calculate_window_positions(
         &self,
         mut group_ids: Vec<usize>,
-        num_workspace_groups: usize,
         manageable_hwnds: &Vec<HWND>,
     ) -> Vec<(HWND, RECT)> {
         Vec::dedup(&mut group_ids);
@@ -158,12 +139,13 @@ impl GroupManager {
             group_ids = self.all_groups();
         }
         let mut window_positions = Vec::new();
+        // let num_groups = group_ids.len();
         // debug!("Calculating window positions for {} groups", num_groups);
         for group_id in group_ids {
             let group = &self.groups[group_id];
-            let rect_width = group.rect.right - group.rect.left;
+            let group_width = group.rect.right - group.rect.left;
             let rect_height = group.rect.bottom - group.rect.top;
-            let group_width = rect_width as f32 / num_workspace_groups as f32;
+            // let group_width = rect_width as f32 / num_groups as f32;
             let windows: Vec<&HWND> = group
                 .windows
                 .iter()
@@ -172,11 +154,11 @@ impl GroupManager {
             let num_windows = windows.len();
             let (section_width, section_height) = match group.split_axis {
                 Axis::HORIZONTAL => (
-                    group_width as i32,
+                    group_width,
                     (rect_height as f32 / num_windows as f32) as i32,
                 ),
                 Axis::VERTICAL => (
-                    (group_width / num_windows as f32) as i32,
+                    (group_width as f32 / num_windows as f32) as i32,
                     (rect_height as f32) as i32,
                 ),
             };
@@ -211,12 +193,19 @@ impl GroupManager {
     }
 
     // Validate each hwnd only exists in one group
-    pub fn validate(&mut self) {
+    pub fn validate(&mut self) -> Vec<(HWND, RECT)> {
         let mut all_hwnds: Vec<HWND> = Vec::new();
+        let mut updated_groups = Vec::new();
         self.groups.iter_mut().for_each(|group| {
+            let before_len = group.windows.len();
             group.windows.retain(|hwnd| !all_hwnds.contains(&hwnd));
+            let after_len = group.windows.len();
+            if before_len != after_len {
+                updated_groups.push(group.index);
+            }
             all_hwnds.extend_from_slice(group.windows.as_slice());
         });
+        return self.calculate_window_positions(updated_groups, &all_hwnds);
     }
 
     pub fn get_window_index_in_group(&self, group_index: usize, hwnd: &HWND) -> usize {

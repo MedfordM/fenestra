@@ -13,13 +13,6 @@ impl MonitorManager {
         Self { monitors }
     }
 
-    pub fn all(&self) -> Vec<HMONITOR> {
-        self.monitors
-            .iter()
-            .map(|monitor| monitor.hmonitor)
-            .collect()
-    }
-
     pub fn monitor_from_hwnd(&self, hwnd: &HWND) -> HMONITOR {
         win_api::monitor::hmonitor_from_hwnd(*hwnd)
     }
