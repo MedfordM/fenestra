@@ -1,7 +1,7 @@
 use std::ffi::CString;
 
 use crate::data::common::event::Event;
-use log::{debug, error};
+use log::error;
 use windows::core::PCSTR;
 use windows::Win32::Foundation::{
     GetLastError, BOOL, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WIN32_ERROR, WPARAM,
@@ -227,11 +227,6 @@ pub fn get_all() -> Vec<Window> {
     unsafe {
         let mut windows = WINDOWS.clone();
         windows.sort_by(|a, b| a.hwnd.0.partial_cmp(&b.hwnd.0).unwrap());
-        // let titles: Vec<String> = windows
-        //     .iter()
-        //     .map(|window| String::from(&window.title))
-        //     .collect();
-        // debug!("Deduplicating {:?}", titles);
         Vec::dedup(&mut windows);
         return windows;
     }
@@ -262,10 +257,6 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
         // );
         return None;
     }
-
-    // if style_u32 & WS_MINIMIZE.0 != 0 {
-    //     return None;
-    // }
 
     let window_info: WINDOWINFO = get_window_coords(hwnd);
     let (rect, shadow_rect) = get_rect(hwnd);
@@ -309,7 +300,7 @@ pub fn set_position(hwnd: &HWND, position: RECT, dpi_change: bool) {
         )
     });
     if dpi_change {
-        debug!("DPI was changed, sizing the window again");
+        // debug!("DPI was changed, sizing the window again");
         handle_result(unsafe {
             SetWindowPos(
                 hwnd.clone(),
