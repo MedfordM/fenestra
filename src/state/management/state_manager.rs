@@ -457,6 +457,17 @@ impl StateManager {
         );
         self.ignore_events = true;
         self.window_manager.minimize(&hwnd);
+        let old_group = self.group_manager.group_for_hwnd(&hwnd);
+        // Focus a window in the same group
+        let old_group_hwnds = self.group_manager.hwnds_from_groups(vec![old_group]);
+        if old_group_hwnds.len() > 1 {
+            let target_hwnd = old_group_hwnds
+                .iter()
+                .filter(|h| h.0 != hwnd.0)
+                .last()
+                .unwrap();
+            self.window_manager.focus(*target_hwnd);
+        }
         let new_positions = self.group_manager.remove_window(&hwnd);
         self.arrange_windows(new_positions);
         let groups = self
