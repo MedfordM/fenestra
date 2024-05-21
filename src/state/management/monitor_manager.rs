@@ -17,6 +17,14 @@ impl MonitorManager {
         win_api::monitor::hmonitor_from_hwnd(*hwnd)
     }
 
+    pub fn monitor_from_workspace(&self, workspace: usize) -> HMONITOR {
+        self.monitors
+            .iter()
+            .find(|monitor| monitor.workspaces.contains(&workspace))
+            .map(|monitor| monitor.hmonitor)
+            .expect("No such workspace")
+    }
+
     pub fn get_current(&self) -> HMONITOR {
         win_api::monitor::hmonitor_from_hwnd(win_api::window::foreground_hwnd())
     }
