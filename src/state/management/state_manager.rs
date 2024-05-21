@@ -200,6 +200,17 @@ impl StateManager {
         self.arrange_windows(new_positions);
     }
 
+    pub fn remove_window(&mut self, hwnd: HWND) {
+        if !self.window_manager.managed_hwnds(true).contains(&hwnd) {
+            return;
+        }
+        if self.window_manager.remove_window(hwnd) {
+            let new_positions = self.group_manager.remove_window(&hwnd);
+            debug!("Removed '{}'", win_api::window::get_window_title(hwnd));
+            self.arrange_windows(new_positions);
+        }
+    }
+
     pub fn validate(&mut self) {
         // Ensure that every managed window has a group
         let num_windows = self.window_manager.managed_hwnds(false).len();
@@ -360,6 +371,13 @@ impl StateManager {
             win_api::window::get_window_title(current_hwnd),
             direction
         );
+    }
+
+    pub fn close_window(&mut self) {
+        let hwnd = win_api::window::foreground_hwnd();
+        debug!("Closing '{}'", win_api::window::get_window_title(hwnd));
+        self.window_manager.close(hwnd);
+        self.remove_window(hwnd);
     }
 
     pub fn focus_workspace(&mut self, workspace_index: usize) {

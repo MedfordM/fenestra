@@ -59,6 +59,16 @@ impl WindowManager {
         return window_style & WS_MINIMIZE.0 as i32 == 0;
     }
 
+    pub fn remove_window(&mut self, hwnd: HWND) -> bool {
+        if !self.windows.iter().any(|window| window.hwnd == hwnd) {
+            return false;
+        }
+        let old_len = self.windows.len();
+        self.windows.retain(|w| w.hwnd != hwnd);
+        let new_len = self.windows.len();
+        return if old_len > new_len { true } else { false };
+    }
+
     pub fn minimize(&mut self, hwnd: &HWND) {
         let window = self.get_window(&hwnd);
         let result = win_api::window::minimize(&window.hwnd);
@@ -100,6 +110,10 @@ impl WindowManager {
         } else {
             debug!("Unable to focus '{}'", &window.title);
         }
+    }
+
+    pub fn close(&mut self, hwnd: HWND) {
+        win_api::window::close(hwnd)
     }
 
     pub fn update_dpi(&mut self, hwnd: HWND) {

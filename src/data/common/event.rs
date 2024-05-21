@@ -55,4 +55,12 @@ impl Event {
             lparam: LPARAM(hwnd.0),
         }
     }
+
+    pub fn destroy(hwnd: HWND) -> Event {
+        Event {
+            message: WINDOW_EVENT,
+            wparam: WPARAM(DESTROY),
+            lparam: LPARAM(hwnd.0),
+        }
+    }
 }

@@ -1,4 +1,6 @@
-use crate::data::common::event::{FOCUS, KEY_EVENT, MINIMIZE, RESTORE, WINDOW_EVENT};
+use crate::data::common::event::{
+    CREATE, DESTROY, FOCUS, KEY_EVENT, MINIMIZE, RESTORE, WINDOW_EVENT,
+};
 use crate::data::key::{Key, KeyEvent, KeyEventType};
 use crate::state::management::key_manager::KeyManager;
 use crate::state::management::state_manager::StateManager;
@@ -34,7 +36,6 @@ fn main() {
                     continue;
                 }
                 match message.wParam.0 {
-                    FOCUS => state_manager.add_window(hwnd),
                     MINIMIZE => {
                         state_manager.window_manager.minimize(&hwnd);
                         let group = state_manager.group_manager.group_for_hwnd(&hwnd);
@@ -54,6 +55,7 @@ fn main() {
                         state_manager.arrange_windows(new_positions);
                     }
                     FOCUS | CREATE => state_manager.add_window(hwnd),
+                    DESTROY => state_manager.remove_window(hwnd),
                     _ => {}
                 }
                 state_manager.validate();

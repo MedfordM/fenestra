@@ -1,5 +1,7 @@
 use crate::data::common::event::Event;
-use windows::Win32::UI::WindowsAndMessaging::EVENT_SYSTEM_MINIMIZEEND;
+use windows::Win32::UI::WindowsAndMessaging::{
+    EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, EVENT_SYSTEM_MINIMIZEEND,
+};
 use windows::Win32::{
     Foundation::HWND,
     UI::{
@@ -56,9 +58,12 @@ pub unsafe extern "system" fn callback(
                 return;
             }
             send_event_message(Event::focus(hwnd));
+        }
+        EVENT_OBJECT_DESTROY => {
+            if hwnd.0 == 0 || object_id != OBJID_WINDOW.0 || child_id != CHILDID_SELF as i32 {
                 return;
             }
-            send_event_message(Event::focus(hwnd));
+            send_event_message(Event::destroy(hwnd));
         }
         _ => (),
     }

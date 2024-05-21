@@ -27,8 +27,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     IDI_APPLICATION, MF_STRING, MSG, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOCOPYBITS,
     SWP_NOSENDCHANGING, SW_MAXIMIZE, SW_RESTORE, SW_SHOWMINNOACTIVE, TPM_BOTTOMALIGN,
     TPM_RIGHTALIGN, TPM_RIGHTBUTTON, WINDOWINFO, WINDOWPLACEMENT, WINDOW_EX_STYLE,
-    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_COMMAND, WM_DESTROY, WM_PAINT, WM_RBUTTONUP,
-    WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
+    WINDOW_LONG_PTR_INDEX, WINDOW_STYLE, WM_APP, WM_CLOSE, WM_COMMAND, WM_DESTROY, WM_PAINT,
+    WM_RBUTTONUP, WM_USER, WNDCLASSA, WS_OVERLAPPEDWINDOW, WS_SIZEBOX, WS_VISIBLE,
 };
 
 use crate::data::window::Window;
@@ -325,6 +325,10 @@ pub fn maximize(hwnd: &HWND) -> bool {
 
 pub fn restore(hwnd: &HWND) -> bool {
     unsafe { ShowWindow(hwnd.clone(), SW_RESTORE) }.as_bool()
+}
+
+pub fn close(hwnd: HWND) {
+    handle_result(unsafe { PostMessageA(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0)) });
 }
 
 pub fn send_event_message(event: Event) {
