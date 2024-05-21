@@ -37,7 +37,7 @@ impl WindowManager {
     pub fn add_window(&mut self, hwnd: HWND) -> bool {
         let window_result = win_api::window::get_window(hwnd);
         if window_result.is_none() {
-            warn!("An attempt to add a window failed");
+            // warn!("An attempt to add a window failed");
             return false;
         }
         let window = window_result.unwrap();

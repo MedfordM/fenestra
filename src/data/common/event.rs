@@ -13,6 +13,8 @@ pub const MINIMIZE: usize = 0;
 pub const RESTORE: usize = 1;
 pub const MOVE_SIZE: usize = 2;
 pub const FOCUS: usize = 3;
+pub const CREATE: usize = 4;
+pub const DESTROY: usize = 5;
 impl Event {
     pub fn key_event(key_code: isize, wparam: WPARAM) -> Event {
         Event {

@@ -192,7 +192,11 @@ impl StateManager {
         if !added_window {
             return;
         }
-        let new_positions = self.group_manager.add_window(self.current_group(), hwnd);
+        let window_title = win_api::window::get_window_title(hwnd);
+        debug!("Added window '{}' ({})", window_title, hwnd.0);
+        let group = self.current_group();
+        debug!("Current group {}", group);
+        let new_positions = self.group_manager.add_window(group, hwnd);
         self.arrange_windows(new_positions);
     }
 

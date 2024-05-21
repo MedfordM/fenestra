@@ -1,3 +1,4 @@
+use crate::actions::windows::close::CloseWindow;
 use std::str::FromStr;
 
 use crate::actions::windows::focus::FocusWindow;
@@ -13,6 +14,7 @@ pub trait Action {
 pub enum WindowManagerAction {
     FocusWindow(FocusWindow),
     MoveWindow(MoveWindow),
+    CloseWindow(CloseWindow),
     FocusWorkspace(FocusWorkspace),
     MoveToWorkspace(MoveToWorkspace),
 }
@@ -22,6 +24,7 @@ impl Action for WindowManagerAction {
         match self {
             WindowManagerAction::FocusWindow(action) => action.execute(state_manager),
             WindowManagerAction::MoveWindow(action) => action.execute(state_manager),
+            WindowManagerAction::CloseWindow(action) => action.execute(state_manager),
             WindowManagerAction::FocusWorkspace(action) => action.execute(state_manager),
             WindowManagerAction::MoveToWorkspace(action) => action.execute(state_manager),
         }
@@ -39,6 +42,10 @@ impl FromStr for WindowManagerAction {
         } else if action.contains("MOVE_WINDOW_") {
             return Ok(WindowManagerAction::MoveWindow(
                 MoveWindow::from_str(action.as_str()).unwrap(),
+            ));
+        } else if action.eq("CLOSE_WINDOW") {
+            return Ok(WindowManagerAction::CloseWindow(
+                CloseWindow::from_str(action.as_str()).unwrap(),
             ));
         } else if action.contains("FOCUS_WORKSPACE_") {
             return Ok(WindowManagerAction::FocusWorkspace(

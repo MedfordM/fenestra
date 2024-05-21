@@ -51,12 +51,11 @@ pub unsafe extern "system" fn callback(
         EVENT_SYSTEM_MINIMIZESTART => send_event_message(Event::minimize(hwnd)),
         EVENT_SYSTEM_MINIMIZEEND => send_event_message(Event::restore(hwnd)),
         EVENT_SYSTEM_MOVESIZEEND => send_event_message(Event::move_size(hwnd)),
-        EVENT_SYSTEM_FOREGROUND => {
-            if hwnd.0 == 0 || object_id == OBJID_WINDOW.0 || child_id != CHILDID_SELF as i32 {
+        EVENT_SYSTEM_FOREGROUND | EVENT_OBJECT_CREATE => {
+            if hwnd.0 == 0 || object_id != OBJID_WINDOW.0 || child_id != CHILDID_SELF as i32 {
                 return;
             }
-            let window_result = win_api::window::get_window(hwnd);
-            if window_result.is_none() {
+            send_event_message(Event::focus(hwnd));
                 return;
             }
             send_event_message(Event::focus(hwnd));

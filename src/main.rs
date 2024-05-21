@@ -53,6 +53,7 @@ fn main() {
                             .calculate_window_positions(vec![group], &manageable_windows);
                         state_manager.arrange_windows(new_positions);
                     }
+                    FOCUS | CREATE => state_manager.add_window(hwnd),
                     _ => {}
                 }
                 state_manager.validate();
