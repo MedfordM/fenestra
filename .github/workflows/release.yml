@@ -19,6 +19,6 @@ jobs:
           args: --release --target x86_64-pc-windows-gnu
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/release-action@v1
         with:
-          files: target/release/fenestra.exe
+          artifacts: "target/release/fenestra.exe"
