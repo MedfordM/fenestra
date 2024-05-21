@@ -30,7 +30,7 @@ impl GroupManager {
         return hwnds.len();
     }
 
-    pub fn candidate_in_direction(
+    pub fn candidate_for_hwnd_in_direction(
         &self,
         hwnd: &HWND,
         direction: &Direction,
@@ -44,6 +44,21 @@ impl GroupManager {
             .cloned()
             .collect::<Vec<HWND>>();
         direction.adjacent_item(*hwnd, hwnds)
+    }
+
+    pub fn candidate_for_group_in_direction(
+        &self,
+        group: &usize,
+        direction: &Direction,
+        managed_hwnds: Vec<HWND>,
+    ) -> HWND {
+        let hwnds = self.groups[*group]
+            .windows
+            .iter()
+            .filter(|h| managed_hwnds.contains(&h))
+            .cloned()
+            .collect::<Vec<HWND>>();
+        return direction.item_in_direction_extreme(hwnds);
     }
 
     pub fn group_for_hwnd(&self, hwnd: &HWND) -> usize {

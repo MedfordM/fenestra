@@ -160,7 +160,8 @@ impl StateManager {
         let workspaces = self.monitor_manager.workspaces_for_monitor(hmonitor);
         let workspace = self.workspace_manager.active_workspace(workspaces);
         let groups = self.workspace_manager.groups_for_workspace(workspace);
-        return groups[groups.len() - 1];
+        let group = groups[groups.len() - 1];
+        return group;
     }
 
     // Separate windows by group, then maximize or set position as needed
@@ -243,15 +244,22 @@ impl StateManager {
 
 impl StateManager {
     pub fn focus_window_in_direction(&mut self, direction: Direction) {
-        let current_hwnd = self.window_manager.current_window();
+        let current_hwnd = win_api::window::foreground_hwnd();
+        if !self
+            .window_manager
+            .managed_hwnds(true)
+            .contains(&current_hwnd)
+        {
+            return;
+        }
         debug!(
             "Attempting to focus window {:?} from '{}'",
             direction,
             win_api::window::get_window_title(current_hwnd)
         );
         {
-            // Search for window in current group
-            let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
+            // Current group
+            let nearest_hwnd_opt = self.group_manager.candidate_for_hwnd_in_direction(
                 &current_hwnd,
                 &direction,
                 self.window_manager.managed_hwnds(true),
@@ -262,15 +270,18 @@ impl StateManager {
             }
         }
         {
-            // Search for window in an adjacent group on the same workspace
+            // Adjacent workspace group
             let current_group = self.group_manager.group_for_hwnd(&current_hwnd);
             let adjacent_group_opt = self
                 .workspace_manager
                 .group_in_direction(current_group, &direction);
             if adjacent_group_opt.is_some() {
                 let adjacent_group = adjacent_group_opt.unwrap();
-                let hwnds = self.group_manager.hwnds_from_groups(vec![adjacent_group]);
-                let hwnd = direction.item_in_direction_extreme(hwnds);
+                let hwnd = self.group_manager.candidate_for_group_in_direction(
+                    &adjacent_group,
+                    &direction,
+                    self.window_manager.managed_hwnds(true),
+                );
                 self.window_manager.focus(hwnd);
                 return;
             }
@@ -290,8 +301,11 @@ impl StateManager {
                 let workspace = self.workspace_manager.active_workspace(workspaces);
                 let groups = self.workspace_manager.groups_for_workspace(workspace);
                 let target_group = direction.item_in_direction_extreme(groups);
-                let hwnds = self.group_manager.hwnds_from_groups(vec![target_group]);
-                let hwnd = direction.item_in_direction_extreme(hwnds);
+                let hwnd = self.group_manager.candidate_for_group_in_direction(
+                    &target_group,
+                    &direction,
+                    self.window_manager.managed_hwnds(true),
+                );
                 self.window_manager.focus(hwnd);
                 return;
             }
@@ -306,8 +320,15 @@ impl StateManager {
 
     pub fn move_window_in_direction(&mut self, direction: Direction) {
         let current_hwnd = win_api::window::foreground_hwnd();
+        if !self
+            .window_manager
+            .managed_hwnds(true)
+            .contains(&current_hwnd)
+        {
+            return;
+        }
         // Current group
-        let nearest_hwnd_opt = self.group_manager.candidate_in_direction(
+        let nearest_hwnd_opt = self.group_manager.candidate_for_hwnd_in_direction(
             &current_hwnd,
             &direction,
             self.window_manager.managed_hwnds(true),
