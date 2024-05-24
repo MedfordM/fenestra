@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use crate::data::common::event::{
     CREATE, DESTROY, FOCUS, KEY_EVENT, MINIMIZE, MOVE_SIZE, RESTORE, WINDOW_EVENT,
 };
