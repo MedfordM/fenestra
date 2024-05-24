@@ -18,10 +18,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target x86_64-pc-windows-gnu
+          args: --release
+
+      - name: Create Release Archive
+        shell: powershell
+        run: Compress-Archive -Path @('fenestra.conf', 'fenestra.exe') -Destination fenestra.zip
 
       - name: Release
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v1
         with:
-          artifacts: "target/release/*"
-          allowUpdates: true
+          files: fenestra.zip
