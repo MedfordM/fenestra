@@ -260,7 +260,7 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
 
     let window_info: WINDOWINFO = get_window_coords(hwnd);
     let (rect, shadow_rect) = get_rect(hwnd);
-    let mut border_thickness = 0;
+    let mut border_thickness = 1;
     // get_ext_attr(
     //     hwnd,
     //     DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
