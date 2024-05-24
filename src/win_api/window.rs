@@ -261,11 +261,11 @@ pub fn get_window(hwnd: HWND) -> Option<Window> {
     let window_info: WINDOWINFO = get_window_coords(hwnd);
     let (rect, shadow_rect) = get_rect(hwnd);
     let mut border_thickness = 0;
-    get_ext_attr(
-        hwnd,
-        DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
-        &mut border_thickness,
-    );
+    // get_ext_attr(
+    //     hwnd,
+    //     DWMWA_VISIBLE_FRAME_BORDER_THICKNESS,
+    //     &mut border_thickness,
+    // );
     let (thread_id, process_id) = get_window_thread_id(hwnd);
     let window_placement: WINDOWPLACEMENT = get_window_placement(hwnd);
     let dpi = get_dpi(hwnd);
