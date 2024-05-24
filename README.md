@@ -98,6 +98,17 @@ separated by a colon.
 **Identifiers** may be any valid action identifier (more on those later), or a variable identifier.<br>
 **Values** must be a valid sequence of key names, each separated by a plus, and may contain variables.
 
+### Key Names
+
+Alphanumeric keys are simply identified by their respective character.
+The following non-alphanumeric keys are currently supported:
+
+- SPACE
+- WIN
+- CTRL
+- ALT
+- SHIFT
+
 ### Variables
 
 Using variables can make maintaining a config much easier.<br>
