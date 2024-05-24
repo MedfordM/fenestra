@@ -166,8 +166,12 @@ impl StateManager {
 
     // Separate windows by group, then maximize or set position as needed
     pub fn arrange_windows(&mut self, positions: Vec<(HWND, RECT)>) {
+        let manageable_hwnds = self.window_manager.managed_hwnds(true);
         let mut positions_by_group: HashMap<usize, Vec<(HWND, RECT)>> = HashMap::new();
         for (hwnd, position) in positions {
+            if !manageable_hwnds.contains(&hwnd) {
+                continue;
+            }
             let current_group = self.group_manager.group_for_hwnd(&hwnd);
             if positions_by_group.contains_key(&current_group) {
                 positions_by_group
@@ -196,7 +200,6 @@ impl StateManager {
         let window_title = win_api::window::get_window_title(hwnd);
         debug!("Added window '{}' ({})", window_title, hwnd.0);
         let group = self.current_group();
-        debug!("Current group {}", group);
         let new_positions = self.group_manager.add_window(group, hwnd);
         self.arrange_windows(new_positions);
     }
