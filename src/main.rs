@@ -1,4 +1,5 @@
 #![windows_subsystem = "windows"]
+
 use crate::data::common::event::{
     CREATE, DESTROY, FOCUS, KEY_EVENT, MINIMIZE, MOVE_SIZE, RESTORE, WINDOW_EVENT,
 };
@@ -67,7 +68,10 @@ fn main() {
                             .monitor_from_workspace(old_workspace);
                         let new_hmonitor = state_manager.monitor_manager.monitor_from_hwnd(&hwnd);
                         if old_hmonitor != new_hmonitor {
-                            state_manager.group_manager.remove_window(&hwnd);
+                            state_manager.group_manager.remove_window(
+                                &hwnd,
+                                &state_manager.window_manager.managed_hwnds(true),
+                            );
                             let new_workspaces = state_manager
                                 .monitor_manager
                                 .workspaces_for_monitor(new_hmonitor);
@@ -80,7 +84,11 @@ fn main() {
                             // TODO: Compute this index based on the direction the window came from
                             let new_group = new_groups[new_groups.len() - 1];
                             updated_groups.push(new_group);
-                            state_manager.group_manager.add_window(new_group, hwnd);
+                            state_manager.group_manager.add_window(
+                                new_group,
+                                hwnd,
+                                &state_manager.window_manager.managed_hwnds(true),
+                            );
                         }
                         let manageable_windows = state_manager.window_manager.managed_hwnds(true);
                         let new_positions = state_manager

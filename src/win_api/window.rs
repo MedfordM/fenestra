@@ -362,14 +362,15 @@ fn get_window_placement(hwnd: HWND) -> WINDOWPLACEMENT {
 }
 
 fn get_ext_attr<T>(hwnd: HWND, attr: DWMWINDOWATTRIBUTE, value: &mut T) {
-    handle_result(unsafe {
+    let result = unsafe {
         DwmGetWindowAttribute(
             hwnd,
             attr,
             (value as *mut T).cast(),
             u32::try_from(std::mem::size_of::<T>()).unwrap(),
         )
-    });
+    };
+    if result.is_err() {}
 }
 
 fn get_rect(hwnd: HWND) -> (RECT, RECT) {
