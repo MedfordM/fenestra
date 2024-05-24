@@ -22,8 +22,7 @@ jobs:
 
       - name: Create Release Archive
         shell: powershell
-        #run: Compress-Archive -Path @('target\\release\\fenestra.conf', 'target\\release\\fenestra.exe') -Destination fenestra.zip
-        run: ls
+        run: Compress-Archive -Path @('target\release\fenestra.conf', 'target\release\fenestra.exe') -Destination fenestra.zip
 
       - name: Release
         uses: softprops/action-gh-release@v1
